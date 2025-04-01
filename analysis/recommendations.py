@@ -2,8 +2,11 @@
 import os
 import logging
 import pandas as pd
+import json
+import re
 from config.settings import DETAILED_RECOMMENDATION_PROMPT, DEFAULT_OUTPUT_DIR
 from services.gemini_service import get_gemini_response
+from services.visualization import generate_pathway_visualization  # Import visualization service
 from utils.file_utils import ensure_directory_exists, save_text_to_file
 
 def get_recommendations(company_name, enhanced_df, gemini_model):
@@ -91,6 +94,49 @@ def get_recommendations(company_name, enhanced_df, gemini_model):
             save_text_to_file(content, recommendation_file)
             print(f"Recommendation saved to: {recommendation_file}")
 
+            # Parse and save JSON for visualization
+            try:
+                # First, try to parse the entire response as JSON
+                try:
+                    roadmap_data = json.loads(response_text)
+                    logging.info("Successfully parsed response as pure JSON")
+                except json.JSONDecodeError:
+                    # If not pure JSON, try to extract JSON part using regex
+                    logging.info("Attempting to extract JSON from mixed text response...")
+                    json_match = re.search(r'({[\s\S]*})', response_text)
+
+                    if json_match:
+                        try:
+                            json_str = json_match.group(1)
+                            roadmap_data = json.loads(json_str)
+                            logging.info("Successfully extracted JSON from text response")
+                        except json.JSONDecodeError:
+                            # If still can't parse, try to structure the text as JSON
+                            logging.warning("Could not parse JSON from extracted text, attempting to structure response...")
+                            roadmap_data = structure_response_as_json(response_text, company_name)
+                    else:
+                        # If no JSON pattern found, structure the text
+                        logging.warning("Could not extract JSON pattern, attempting to structure response...")
+                        roadmap_data = structure_response_as_json(response_text, company_name)
+
+                # Save the structured JSON data for visualization
+                json_file = os.path.join(output_dir, f"{company_name}_roadmap.json")
+                with open(json_file, 'w', encoding='utf-8') as f:
+                    json.dump(roadmap_data, f, indent=2)
+                logging.info(f"Structured JSON saved to: {json_file}")
+                print(f"Structured data saved for visualization to: {json_file}")
+
+                # Generate visualization using the visualization service
+                vis_file = generate_pathway_visualization(company_name, roadmap_data)
+                if vis_file:
+                    print(f"Interactive visualization created at: {vis_file}")
+                else:
+                    print("Warning: Could not create visualization. Check logs for details.")
+
+            except Exception as e:
+                logging.error(f"Error processing JSON for visualization: {e}")
+                print(f"Warning: Could not structure data for visualization. See text output instead.")
+
         except Exception as e:
             logging.error(f"Error getting recommendations for {company_name} from Gemini: {e}")
             print(f"Error: Could not generate recommendations for {company_name}.")
@@ -98,3 +144,104 @@ def get_recommendations(company_name, enhanced_df, gemini_model):
     except Exception as e:
         logging.error(f"Error preparing recommendation data for {company_name}: {e}")
         print(f"Error preparing data for {company_name}. Cannot generate recommendations.")
+
+def structure_response_as_json(text, company_name):
+    """Convert text response to structured JSON if it's not already in JSON format."""
+    logging.info("Converting text response to structured JSON format")
+
+    # Initialize the structure
+    structured_data = {
+        "company": company_name,
+        "timeframes": []
+    }
+
+    # Define the expected timeframes
+    timeframes = [
+        "Immediate actions (Now - 2030)",
+        "Medium-term actions (2030 - 2040)",
+        "Long-term goals (2040 - 2050)"
+    ]
+
+    # Regular expressions to extract sections
+    timeframe_pattern = r'(Immediate actions|Medium-term actions|Long-term goals).*?(?=Immediate actions|Medium-term actions|Long-term goals|\Z)'
+    category_pattern = r'([A-Za-z\s&()]+):\s*'
+
+    # Find all timeframe sections
+    for timeframe_name in timeframes:
+        timeframe_data = {
+            "name": timeframe_name,
+            "actions": []
+        }
+
+        # Extract the timeframe section using regex
+        timeframe_match = re.search(fr'{timeframe_name}(.*?)(?={"|".join(timeframes)}|\Z)', text, re.DOTALL)
+        if not timeframe_match:
+            continue
+
+        timeframe_text = timeframe_match.group(1)
+
+        # Action categories (aligned with our constants)
+        categories = [
+            "Renewables", "Energy Efficiency", "Electrification", "Bioenergy",
+            "CCUS", "Carbon Capture Utilization and Storage", "Hydrogen Fuel", "Behavioral Changes"
+        ]
+
+        # Find all category sections within this timeframe
+        for category in categories:
+            # Adjust for alternative naming of CCUS
+            search_category = category
+            if category == "CCUS":
+                search_category = r"(CCUS|Carbon Capture Utilization and Storage)"
+
+            category_match = re.search(fr'{search_category}:(.*?)(?={"|".join(categories)}|\Z)', timeframe_text, re.DOTALL | re.IGNORECASE)
+            if not category_match:
+                continue
+
+            category_text = category_match.group(1).strip()
+
+            # Normalize category name
+            display_category = category
+            if "Carbon Capture" in category:
+                display_category = "CCUS"
+
+            category_data = {
+                "category": display_category,
+                "recommendations": []
+            }
+
+            # Extract individual recommendations
+            recommendation_pattern = r'(?:(\d+\.\s*|\-\s*))?([^:\n]+):\s*(.*?)(?=\d+\.\s*|\-\s*|$)'
+            recommendations = re.finditer(recommendation_pattern, category_text, re.DOTALL)
+
+            for rec in recommendations:
+                title = rec.group(2).strip() if rec.group(2) else "Recommendation"
+                details = rec.group(3).strip() if rec.group(3) else ""
+
+                # Extract reference if available
+                reference = ""
+                ref_match = re.search(r'\[([^\]]+)\]', details)
+                if ref_match:
+                    reference = ref_match.group(0)
+                    # Remove reference from details if it's at the end
+                    details = details.replace(reference, "").strip()
+
+                recommendation_data = {
+                    "title": title,
+                    "details": details,
+                    "reference": reference
+                }
+
+                category_data["recommendations"].append(recommendation_data)
+
+            if category_data["recommendations"]:
+                timeframe_data["actions"].append(category_data)
+
+        if timeframe_data["actions"]:
+            structured_data["timeframes"].append(timeframe_data)
+
+    # If no structured data could be extracted, create a basic structure with the raw text
+    if not structured_data["timeframes"]:
+        structured_data["text"] = text
+        logging.warning("Could not extract structured data, saving raw text in JSON")
+
+    return structured_data

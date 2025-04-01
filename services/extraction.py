@@ -5,7 +5,7 @@ import numpy as np
 from config.settings import ENHANCED_EXTRACTION_PROMPT
 from services.gemini_service import get_gemini_response
 from analysis.parser import parse_gemini_output
-
+import os
 def get_gemini_extraction(text, company_name, gemini_model):
     """Extract structured information from report text using Gemini."""
     if not text:

@@ -75,7 +75,7 @@ Be specific and suggest concrete actions within each timeframe (e.g., "Invest X%
 Roadmap for {company_name}:
 """
 
-# Detailed recommendation prompt template
+# Structured recommendation prompt template
 DETAILED_RECOMMENDATION_PROMPT = """
 You are an expert energy transition consultant creating a detailed, time-based roadmap of recommendations for {company_name}.
 
@@ -88,40 +88,63 @@ COMPANY PROFILE FROM ANNUAL REPORT:
 
 {actions_summary}
 
-TASK: Create a detailed energy transition roadmap for {company_name} with the following specifications:
+TASK: Create a detailed energy transition roadmap for {company_name} with the following specifications.
 
-1. Maintain a TIME-BASED STRUCTURE with these three timeframes:
-   - Immediate actions (Now - 2030)
-   - Medium-term actions (2030 - 2040)
-   - Long-term goals (2040 - 2050)
+CRITICAL: YOU MUST OUTPUT YOUR ENTIRE RESPONSE IN VALID JSON FORMAT USING THIS EXACT STRUCTURE:
 
-2. Within each timeframe, CATEGORIZE recommendations by specific energy transition actions:
-   - Renewables
-   - Energy Efficiency
-   - Electrification
-   - Bioenergy
-   - Carbon Capture Utilization and Storage (CCUS)
-   - Hydrogen Fuel
-   - Behavioral Changes
-   - Other relevant actions
+```json
+{{
+  "company": "{company_name}",
+  "timeframes": [
+    {{
+      "name": "Immediate actions (Now - 2030)",
+      "actions": [
+        {{
+          "category": "Renewables",
+          "recommendations": [
+            {{
+              "title": "Brief recommendation title",
+              "details": "Detailed explanation of the recommendation",
+              "reference": "Annual Report reference or New Recommendation rationale"
+            }}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+```
 
-3. IMPORTANT REQUIREMENTS:
-   - Base recommendations PRIMARILY on actions already identified in the company's annual report
-   - For each identified action, provide specific steps that link to the company's actual targets
-   - Only suggest NEW actions if they are feasible based on the company's operations and industry
-   - For each recommendation, explain HOW it helps achieve specific targets mentioned in their sustainability milestones
-   - Be specific with measurable targets and timelines (e.g., "Increase renewable capacity by X% by 2030")
-   - Include feasibility considerations and potential implementation challenges
+Your response must include the following three timeframes:
+1. "Immediate actions (Now - 2030)"
+2. "Medium-term actions (2030 - 2040)"
+3. "Long-term goals (2040 - 2050)"
 
-4. CITATIONS & REFERENCES:
-   - For EACH recommendation, explicitly cite where in the annual report the supporting information was found
-   - Use this format: [Annual Report, Section/Page Reference: "Direct quote or paraphrased content"]
-   - If recommending something not explicitly mentioned in the report, clearly state: [New Recommendation: Rationale based on industry standards/peer practices]
-   - Ensure every claim about the company's current strategy, targets, or actions has a corresponding reference
+For each timeframe, include action categories relevant to the company from this list:
+- Renewables
+- Energy Efficiency
+- Electrification
+- Bioenergy
+- Carbon Capture Utilization and Storage (CCUS)
+- Hydrogen Fuel
+- Behavioral Changes
+- Other relevant actions
 
-Format your response as a comprehensive roadmap with clear sections and subsections. For each action category, provide 2-3 specific, actionable recommendations with proper citations.
+Requirements:
+- Base recommendations PRIMARILY on actions already identified in the company's annual report
+- For each identified action, provide specific steps that link to the company's actual targets
+- Only suggest NEW actions if they are feasible based on the company's operations and industry
+- For each recommendation, explain HOW it helps achieve specific targets mentioned in their sustainability milestones
+- Be specific with measurable targets and timelines (e.g., "Increase renewable capacity by X% by 2030")
+- Include feasibility considerations and potential implementation challenges
+
+For references:
+- For EACH recommendation, explicitly cite where in the annual report the supporting information was found
+- Use this format: [Annual Report, Section/Page Reference: "Direct quote or paraphrased content"]
+- If recommending something not explicitly mentioned in the report, clearly state: [New Recommendation: Rationale based on industry standards/peer practices]
+
+IMPORTANT: RESPOND ONLY WITH VALID JSON. Do not include any explanatory text, markdown formatting, or code blocks outside the JSON structure. The JSON must be parseable by standard JSON parsers.
 """
-
 # Action categories
 ACTION_CATEGORIES = [
     "Renewables", "Energy Efficiency", "Electrification", "Bioenergy",
