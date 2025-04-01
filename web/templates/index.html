@@ -1,0 +1,78 @@
+{% extends "base.html" %} {% block title %}Energy Transition Pathway Tool -
+Home{% endblock %} {% block content %}
+<div class="row">
+    <div class="col-md-12 text-center mb-4">
+        <h1>Welcome to the Energy Transition Pathway Tool</h1>
+        <p class="lead">
+            Upload company annual reports, analyze transition strategies, and
+            generate actionable recommendations.
+        </p>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <h3 class="card-title">Upload Reports</h3>
+                <p class="card-text">Upload annual reports for analysis</p>
+                <a href="{{ url_for('main.upload') }}" class="btn btn-primary"
+                    >Upload Report</a
+                >
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <h3 class="card-title">View Companies</h3>
+                <p class="card-text">View analyzed companies and their data</p>
+                <a
+                    href="{{ url_for('main.companies') }}"
+                    class="btn btn-primary"
+                    >Browse Companies</a
+                >
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <h3 class="card-title">Generate Pathways</h3>
+                <p class="card-text">Create detailed transition roadmaps</p>
+                <a
+                    href="{{ url_for('main.companies') }}"
+                    class="btn btn-primary"
+                    >Select Company</a
+                >
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h3>How It Works</h3>
+                <ol>
+                    <li>Upload a company's annual report (PDF format)</li>
+                    <li>
+                        The system analyzes the report to extract relevant
+                        energy transition data
+                    </li>
+                    <li>
+                        Generate a detailed energy transition roadmap and
+                        visualization
+                    </li>
+                    <li>
+                        Use the recommendations to inform strategic planning
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

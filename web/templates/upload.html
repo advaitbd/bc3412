@@ -1,0 +1,51 @@
+{% extends "base.html" %} {% block title %}Upload Annual Report{% endblock %} {%
+block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Upload Annual Report</h2>
+        <p class="lead">
+            Upload a PDF annual report for a company to analyze its energy
+            transition strategy.
+        </p>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.company_name.label(class="form-label") }} {{
+                        form.company_name(class="form-control") }} {% if
+                        form.company_name.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {% for error in form.company_name.errors %}
+                            <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.report_file.label(class="form-label") }} {{
+                        form.report_file(class="form-control") }} {% if
+                        form.report_file.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {% for error in form.report_file.errors %}
+                            <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Upload the annual report in PDF format.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
