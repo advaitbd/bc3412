@@ -4,3 +4,6 @@ venv
 .env
 outputs
 outputs/enhanced_dataset.csv
+
+# pycache files all over the project
+**/__pycache__/**
