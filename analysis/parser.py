@@ -11,7 +11,13 @@ def parse_gemini_output(response_text):
         "Strategic Priorities (Energy Transition)": np.nan,
         "Financial Commitments (Energy Transition)": np.nan,
         "Identified Risks (Physical and Transition)": np.nan,
-        "Sustainability Milestones": np.nan
+        "Sustainability Milestones": np.nan,
+
+        # Add new structured financial fields
+        "Transition_CapEx_Percentage": np.nan,
+        "Transition_CapEx_Amount": np.nan,
+        "Transition_CapEx_Timeline": np.nan,
+        "Transition_Project_Allocations": np.nan
     }
 
     # Use regex to find sections robustly, handling potential variations
@@ -33,6 +39,30 @@ def parse_gemini_output(response_text):
             # Section pattern not found at all
             data[key] = "Section not found in response"  # Indicate pattern failure
             logging.warning(f"Could not parse section '{key}' using pattern: {pattern}")
+
+    # Parse financial commitments into structured data
+    if "Financial Commitments (Energy Transition)" in data and data["Financial Commitments (Energy Transition)"] != "Section not found in response":
+        financial_text = data["Financial Commitments (Energy Transition)"]
+
+        # Extract CapEx percentage
+        capex_pct_match = re.search(r'(\d+(?:\.\d+)?)%\s+(?:of)?\s+(?:total)?\s+(?:CapEx|capital expenditure|capex)', financial_text, re.IGNORECASE)
+        if capex_pct_match:
+            data["Transition_CapEx_Percentage"] = float(capex_pct_match.group(1))
+
+        # Extract absolute CapEx amount (with currency)
+        capex_amount_match = re.search(r'((?:US)?\$|\€|\£)?(\d+(?:\.\d+)?)\s*(?:billion|million|bn|m)?\s+(?:in|for|on)\s+(?:sustainability|energy transition|green investments)', financial_text, re.IGNORECASE)
+        if capex_amount_match:
+            data["Transition_CapEx_Amount"] = capex_amount_match.group(0)
+
+        # Extract timeline if available
+        timeline_match = re.search(r'(?:by|until|through|for)\s+(?:the\s+)?(?:year\s+)?(\d{4}(?:\s*\-\s*\d{4})?)', financial_text, re.IGNORECASE)
+        if timeline_match:
+            data["Transition_CapEx_Timeline"] = timeline_match.group(1)
+
+        # Look for specific project allocations
+        project_match = re.search(r'((?:allocat|invest|commit)(?:ed|ing)?(?:\s+\$|\€|\£)?(?:\s*\d+(?:\.\d+)?\s*(?:billion|million|bn|m)?)?\s+(?:to|for|in)\s+[^\.;]+)', financial_text, re.IGNORECASE)
+        if project_match:
+            data["Transition_Project_Allocations"] = project_match.group(1)
 
     # Parse action classifications
     action_section_match = re.search(r"^\s*6\.\s*Action Classifications:\s*(.*?)(?=\Z)",

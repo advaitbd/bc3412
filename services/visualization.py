@@ -87,7 +87,8 @@ def generate_pathway_visualization(company_name, json_data):
                         "label": rec.get("title", "Unknown Recommendation"),
                         "type": "recommendation",
                         "details": rec.get("details", ""),
-                        "reference": rec.get("reference", "No reference provided")
+                        "reference": rec.get("reference", "No reference provided"),
+                        "justification": rec.get("justification", {})
                     }
                     nodes.append(rec_node)
 
@@ -169,6 +170,22 @@ def generate_pathway_visualization(company_name, json_data):
                     background-color: #f9f9f9;
                     padding: 8px;
                     border-left: 3px solid #4b77be;
+                }}
+                .justification {{
+                    margin-top: 15px;
+                    background-color: #f0f7ff;
+                    padding: 10px;
+                    border-radius: 5px;
+                }}
+                .justification h4 {{
+                    margin-top: 0;
+                    color: #3c4b64;
+                }}
+                .justification-item {{
+                    margin: 5px 0;
+                    padding: 5px;
+                    border-left: 2px solid #6c88a5;
+                    background-color: #ffffff;
                 }}
             </style>
         </head>
@@ -273,6 +290,49 @@ def generate_pathway_visualization(company_name, json_data):
                                     </div>
                                 </div>
                             `;
+
+                            // Display justification if available
+                            if (node.justification) {{
+                                content += `
+                                    <div class="justification">
+                                        <h4>Recommendation Justification</h4>
+                                `;
+
+                                // Check each justification element
+                                if (node.justification.peer_alignment) {{
+                                    content += `
+                                        <div class="justification-item">
+                                            <strong>Peer Alignment:</strong> ${{node.justification.peer_alignment}}
+                                        </div>
+                                    `;
+                                }}
+
+                                if (node.justification.financial_viability) {{
+                                    content += `
+                                        <div class="justification-item">
+                                            <strong>Financial Viability:</strong> ${{node.justification.financial_viability}}
+                                        </div>
+                                    `;
+                                }}
+
+                                if (node.justification.operational_feasibility) {{
+                                    content += `
+                                        <div class="justification-item">
+                                            <strong>Operational Feasibility:</strong> ${{node.justification.operational_feasibility}}
+                                        </div>
+                                    `;
+                                }}
+
+                                if (node.justification.target_alignment) {{
+                                    content += `
+                                        <div class="justification-item">
+                                            <strong>Target Alignment:</strong> ${{node.justification.target_alignment}}
+                                        </div>
+                                    `;
+                                }}
+
+                                content += `</div>`;
+                            }}
                         }} else if (node.type === 'company') {{
                             content += `
                                 <div class="node-details">

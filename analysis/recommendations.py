@@ -43,6 +43,21 @@ def get_recommendations(company_name, enhanced_df, gemini_model):
             'risks_info': company_row['Identified Risks (Physical and Transition)'].iloc[0] if 'Identified Risks (Physical and Transition)' in company_row.columns else "No specific risks mentioned."
         }
 
+        # Get structured financial data
+        transition_capex = "Not specified"
+        if 'Transition_CapEx_Percentage' in company_row.columns and not pd.isna(company_row['Transition_CapEx_Percentage'].iloc[0]):
+            transition_capex = f"{company_row['Transition_CapEx_Percentage'].iloc[0]}% of total CapEx"
+        elif 'Transition_CapEx_Amount' in company_row.columns and not pd.isna(company_row['Transition_CapEx_Amount'].iloc[0]):
+            transition_capex = f"{company_row['Transition_CapEx_Amount'].iloc[0]}"
+
+            if 'Transition_CapEx_Timeline' in company_row.columns and not pd.isna(company_row['Transition_CapEx_Timeline'].iloc[0]):
+                transition_capex += f" through {company_row['Transition_CapEx_Timeline'].iloc[0]}"
+
+        # Get project allocations
+        project_allocations = "No specific allocations mentioned"
+        if 'Transition_Project_Allocations' in company_row.columns and not pd.isna(company_row['Transition_Project_Allocations'].iloc[0]):
+            project_allocations = company_row['Transition_Project_Allocations'].iloc[0]
+
         # Clean up fields
         for key, value in fields.items():
             if pd.isna(value) or value == "Not Mentioned":
@@ -65,6 +80,8 @@ def get_recommendations(company_name, enhanced_df, gemini_model):
             financial_commitments=fields['financial_commitments'],
             sustainability_info=fields['sustainability_info'],
             risks_info=fields['risks_info'],
+            transition_capex=transition_capex,
+            project_allocations=project_allocations,
             actions_summary=actions_summary
         )
 

@@ -26,7 +26,6 @@ If a specific piece of information is not explicitly mentioned in the text provi
 Structured Output:
 """
 
-# Enhanced extraction prompt
 ENHANCED_EXTRACTION_PROMPT = """
 Analyze the following annual report text for "{company_name}" and extract the explicitly stated information below.
 Structure the output EXACTLY as follows, using the headers provided.
@@ -34,7 +33,7 @@ If a specific piece of information is not explicitly mentioned in the text provi
 
 1.  Executive Summary: [Provide a concise summary of the company's business model and overall strategy as stated.]
 2.  Strategic Priorities (Energy Transition): [List ONLY explicitly mentioned priorities related to: Renewables, Energy Efficiency, Electrification, Bioenergy, Carbon Capture Utilisation and Storage (CCUS), Hydrogen Fuel, Behavioral Changes. If none mentioned, state "Not Mentioned".]
-3.  Financial Commitments (Energy Transition): [State the specific % of CapEx explicitly dedicated to energy transition, or other explicitly stated financial commitment figures related to transition. If none mentioned, state "Not Mentioned".]
+3.  Financial Commitments (Energy Transition): [State SPECIFICALLY: a) % of CapEx dedicated to energy transition, b) Absolute CapEx amount in local currency, c) Any planned increase over time, d) Any specific project allocations. Provide exact figures and timeframes if mentioned. If none found, state "Not Mentioned".]
 4.  Identified Risks (Physical and Transition): [List explicitly mentioned physical risks (e.g., climate impacts) and transition risks (e.g., policy changes, market shifts) related to energy/climate. If none mentioned, state "Not Mentioned".]
 5.  Sustainability Milestones: [List explicitly stated quantitative milestones, targets, years, and scope coverage (Scope 1, 2, 3) related to emissions or other sustainability goals. If none mentioned, state "Not Mentioned".]
 6.  Action Classifications: For each action category below, explicitly state TRUE or FALSE if the company is engaged in this action based on the report. For each TRUE classification, provide a brief, one-sentence justification with evidence from the text:
@@ -86,6 +85,10 @@ COMPANY PROFILE FROM ANNUAL REPORT:
 - Sustainability Targets: {sustainability_info}
 - Identified Risks: {risks_info}
 
+FINANCIAL VIABILITY ASSESSMENT:
+- CapEx for Sustainability: {transition_capex}
+- Current Investment Areas: {project_allocations}
+
 {actions_summary}
 
 TASK: Create a detailed energy transition roadmap for {company_name} with the following specifications.
@@ -105,7 +108,13 @@ CRITICAL: YOU MUST OUTPUT YOUR ENTIRE RESPONSE IN VALID JSON FORMAT USING THIS E
             {{
               "title": "Brief recommendation title",
               "details": "Detailed explanation of the recommendation",
-              "reference": "Annual Report reference or New Recommendation rationale"
+              "reference": "Annual Report reference or New Recommendation rationale",
+              "justification": {{
+                "peer_alignment": "How this aligns with industry standards or peer practices",
+                "financial_viability": "Analysis of financial feasibility based on company CapEx",
+                "operational_feasibility": "Assessment of implementation feasibility",
+                "target_alignment": "How this helps meet company's stated targets"
+              }}
             }}
           ]
         }}
@@ -130,13 +139,11 @@ For each timeframe, include action categories relevant to the company from this 
 - Behavioral Changes
 - Other relevant actions
 
-Requirements:
-- Base recommendations PRIMARILY on actions already identified in the company's annual report
-- For each identified action, provide specific steps that link to the company's actual targets
-- Only suggest NEW actions if they are feasible based on the company's operations and industry
-- For each recommendation, explain HOW it helps achieve specific targets mentioned in their sustainability milestones
-- Be specific with measurable targets and timelines (e.g., "Increase renewable capacity by X% by 2030")
-- Include feasibility considerations and potential implementation challenges
+Requirements for justifications (critically important):
+1. Peer alignment: Explain how the recommendation aligns with industry standards or what peers are doing
+2. Financial viability: Assess whether it fits within the company's disclosed sustainability CapEx
+3. Operational feasibility: Evaluate what is practically possible based on the company's operations
+4. Target alignment: Show how this recommendation helps achieve the company's stated climate targets
 
 For references:
 - For EACH recommendation, explicitly cite where in the annual report the supporting information was found
