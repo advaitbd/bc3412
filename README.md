@@ -1,4 +1,3 @@
-\
 # Energy Transition Data Pipeline MVP
 
 ## Overview
