@@ -1,0 +1,6 @@
+pandas
+openpyxl
+PyMuPDF
+google-generativeai
+numpy
+python-dotenv
