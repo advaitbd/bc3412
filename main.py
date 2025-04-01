@@ -137,13 +137,14 @@ def parse_gemini_output(response_text):
         match = re.search(pattern, response_text, re.DOTALL | re.IGNORECASE | re.MULTILINE)
         if match:
             extracted_value = match.group(1).strip()
-            if "Not Mentioned" in extracted_value:
-                 data[key] = np.nan # Store as NaN if Gemini explicitly states not mentioned
-            else:
-                 data[key] = extracted_value if extracted_value else np.nan
+            # Keep the text even if it says "Not Mentioned" or is empty
+            # The downstream classification logic will handle this.
+            data[key] = extracted_value if extracted_value else "No information found" # Store text or placeholder
         else:
-             logging.warning(f"Could not parse section '{key}' from Gemini response.")
-             data[key] = np.nan # Store as NaN if parsing fails
+            # Section pattern not found at all
+            data[key] = "Section not found in response" # Indicate pattern failure
+            logging.warning(f"Could not parse section '{key}' using pattern: {pattern}")
+            data[key] = "Section not found in response" # Ensure placeholder if warning occurs
 
     # Add specific columns for key transition actions based on 'Strategic Priorities'
     priorities_text = data.get("Strategic Priorities (Energy Transition)", "")
@@ -253,50 +254,83 @@ def integrate_data(original_df, extracted_data_list):
     logging.info(f"Columns after integration: {enhanced_df.columns.tolist()}") # Log columns
     return enhanced_df
 
-def classify_actions(df):
-    logging.info("Classifying actions into broader categories...")
-    # Define mapping from specific actions (columns) to broader buckets
-    # A single action can potentially map to multiple buckets if applicable,
-    # but for simplicity, let's do a primary mapping here.
-    # Adjust logic as needed based on nuanced definitions.
+def classify_actions_with_justification(df):
+    """
+    Classifies company actions based on keywords in extracted text sections
+    and provides justification snippets.
 
-    # Ensure action columns exist, default to False if missing after merge/extraction
-    action_cols = ["Renewables", "Energy Efficiency", "Electrification", "Bioenergy", "CCUS", "Hydrogen Fuel", "Behavioral Changes"]
-    for col in action_cols:
-        if col not in df.columns:
-            df[col] = False # Add column with False if it wasn't created during extraction
-        else:
-            df[col] = df[col].fillna(False) # Fill any potential NaNs with False
-
-
-    # Initialize category columns
-    df['Category: Operational Efficiency'] = False
-    df['Category: Renewable Integration'] = False
-    df['Category: Technology Investment'] = False
-    df['Category: Policy & Compliance'] = False # This might need different logic, e.g., based on risk text or milestones? For now, placeholder.
-
-    # Apply classification logic (Example - refine as needed)
-    df.loc[df['Energy Efficiency'] | df['Behavioral Changes'], 'Category: Operational Efficiency'] = True
-    df.loc[df['Renewables'] | df['Electrification'] | df['Bioenergy'], 'Category: Renewable Integration'] = True # Electrification often tied to renewables
-    df.loc[df['CCUS'] | df['Hydrogen Fuel'], 'Category: Technology Investment'] = True
-    # Note: Policy & Compliance is harder to map directly from these actions.
-    # It might be inferred from 'Identified Risks' or 'Sustainability Milestones'.
-    # Let's add a simple placeholder check in risks for now.
-
-    # Ensure the risks column is string type and fill NaNs before using .str accessor
-    risks_col = 'Identified Risks (Physical and Transition)'
-    if risks_col not in df.columns:
-        df[risks_col] = "" # Add empty string column if it doesn't exist
-    else:
-        # Ensure column is string type, replacing NaN with empty string
-        df[risks_col] = df[risks_col].astype(str).fillna('')
-
-    df['Category: Policy & Compliance'] = df[risks_col].str.contains('policy|regulation|compliance', case=False)
-
-
-    logging.info("Action classification complete.")
+    Adds boolean columns (e.g., 'Renewables', 'Category: ...') and
+    corresponding justification columns (e.g., 'Justification: Renewables').
+    """
+    logging.info("Classifying actions with justification...")
+    
+    # Define keywords/regex for each action/category
+    # Use word boundaries (\b) to avoid partial matches (e.g., 'bio' in 'biology')
+    action_keywords = {
+        'Renewables': r'\brenewables?\b|\bsolar\b|\bwind\b',
+        'Energy Efficiency': r'\benergy\s+efficiency\b|\befficiency\s+improvement[s]?\b',
+        'Electrification': r'\belectrification\b|\belectrify\b',
+        'Bioenergy': r'\bbioenergy\b|\bbiofuel[s]?\b|\bbiogas\b',
+        'CCUS': r'\bccus\b|\bcarbon\s+capture\b',
+        'Hydrogen Fuel': r'\bhydrogen\b',
+        # 'Behavioral Changes': r'\b(?:behavioral|behavioural)\s+change[s]?\b' # Often implicit, harder to keyword search
+    }
+    
+    category_keywords = {
+        'Category: Operational Efficiency': r'\befficiency\b|\breduction[s]?\b|\boptimize\b|\boptimise\b|\bmethane\b|\bflaring\b', # Broader than specific 'Energy Efficiency' action
+        'Category: Renewable Integration': r'\brenewables?\b|\bsolar\b|\bwind\b|\bppa\b|\bbiofuel[s]?\b|\bbiogas\b', # Includes Bioenergy
+        'Category: Technology Investment': r'\bccus\b|\bcarbon\s+capture\b|\bhydrogen\b|\belectrification\b|\bpilot\b|\bdevelop(ment)?\b|\binnovat(e|ion)?\b|\bresearch\b|\br&d\b',
+        'Category: Policy & Compliance': r'\bpolicy\b|\bregulation[s]?\b|\bcompliance\b|\btarget[s]?\b|\bcommitment[s]?\b|\bnet[-\s]?zero\b|\bemission[s]?\b' # From risks or milestones primarily
+    }
+    
+    # Columns to search for keywords in order of relevance (can be adjusted)
+    search_cols = [
+        'Strategic Priorities (Energy Transition)',
+        'Sustainability Milestones',
+        'Executive Summary',
+        'Identified Risks (Physical and Transition)', # Relevant for Policy/Compliance
+        'End_target_text', # Relevant for Policy/Compliance
+        'Interim_target_text' # Relevant for Policy/Compliance
+    ]
+    
+    # Ensure search columns exist and handle potential missing ones gracefully
+    available_search_cols = [col for col in search_cols if col in df.columns]
+    if not available_search_cols:
+        logging.error("No text columns available for classification. Skipping.")
+        return df
+    
+    # Convert relevant columns to string and fill NaNs
+    for col in available_search_cols:
+         df[col] = df[col].astype(str).fillna('') # Ensure string type
+    
+    all_keywords = {**action_keywords, **category_keywords}
+    
+    for key, pattern in all_keywords.items():
+        bool_col = key # Name of boolean col (works for Category: too)
+        just_col = f"Justification: {key}" # Name of justification col
+        df[bool_col] = False # Initialize boolean column
+        df[just_col] = "Keyword not found in relevant sections" # Initialize justification
+    
+        for index, row in df.iterrows():
+            found_justification = ""
+            for col_to_search in available_search_cols:
+                # Search case-insensitively
+                match = re.search(pattern, row[col_to_search], re.IGNORECASE)
+                if match:
+                    df.loc[index, bool_col] = True
+                    # Extract a snippet around the match for justification
+                    start, end = match.span()
+                    context_start = max(0, start - 30) # Get some context before
+                    context_end = min(len(row[col_to_search]), end + 30) # Get some context after
+                    snippet = row[col_to_search][context_start:context_end]
+                    found_justification = f"...{snippet}..."
+                    break # Stop searching columns for this row once found
+    
+            if found_justification:
+                 df.loc[index, just_col] = found_justification
+    
+    logging.info("Action classification with justification complete.")
     return df
-
 
 def save_enhanced_data(df, output_path=DEFAULT_OUTPUT_CSV):
     try:
@@ -397,16 +431,21 @@ def get_recommendations(company_name, enhanced_df, gemini_model):
         response = gemini_model.generate_content(prompt)
         logging.info(f"Received recommendation from Gemini for {company_name}.")
 
-        # Print the recommendation roadmap
-        print("\n" + "="*50)
-        print(f" Energy Transition Roadmap for: {company_name}")
-        print("="*50 + "\n")
-        # Check for content before printing
-        if response.parts:
-             print(response.text)
-        else:
-             print("Gemini did not return a recommendation. This might be due to safety settings or an issue.")
-             logging.warning(f"Gemini returned no content for recommendation request for {company_name}.")
+        # --- Add HTML Generation ---
+        try:
+            recommendation_text = response.text
+            print("\n" + recommendation_text) # Keep printing raw text
+
+            parsed_phases = parse_recommendation_output(recommendation_text)
+            html_file = generate_html_roadmap(parsed_phases, company_name)
+            if html_file:
+                print(f"\nRecommendation roadmap saved to: {html_file}")
+            else:
+                 print(f"\nFailed to generate HTML roadmap for {company_name}.")
+        except Exception as html_err:
+             logging.error(f"Error during HTML generation for {company_name}: {html_err}")
+             print("\nError occurred during HTML roadmap generation.")
+        # --- End Add HTML Generation ---
 
     except Exception as e:
         logging.error(f"Error getting recommendations for {company_name} from Gemini: {e}")
@@ -480,7 +519,8 @@ def main():
             enhanced_df = integrate_data(original_df, extracted_results)
 
             # 5. Classify Actions
-            enhanced_df = classify_actions(enhanced_df)
+            enhanced_df = classify_actions_with_justification(enhanced_df)
+            logging.info(f"Action classification complete.")
 
             # 6. Save Enhanced Data
             save_enhanced_data(enhanced_df, DEFAULT_OUTPUT_CSV)
@@ -491,7 +531,10 @@ def main():
                 logging.info(f"Attempting to generate recommendations for: {args.company}")
                 get_recommendations(args.company, enhanced_df, gemini_model)
             else:
-                logging.info("No company specified via --company argument. Skipping recommendations.")
+                # Temporarily hardcoding for BP run
+                company_to_generate = "BP"
+                logging.info(f"Hardcoded to generate recommendations for: {company_to_generate}")
+                get_recommendations(company_to_generate, enhanced_df, gemini_model)
 
         else:
             logging.error("Enhanced dataset is empty or could not be created. Cannot proceed to recommendations.")
@@ -504,6 +547,133 @@ def main():
     except Exception as e:
         logging.critical(f"An unexpected error occurred: {e}", exc_info=True) # Log full traceback
         print(f"An unexpected error occurred. Check logs for details.")
+
+# --- Helper functions for HTML generation ---
+def parse_recommendation_output(recommendation_text):
+    """
+    Parses the structured recommendation text into a dictionary of phases and actions.
+    Expected format relies on headers like 'I. Immediate Actions', 'II. Medium-Term', 'III. Long-Term'.
+    """
+    phases = {}
+    # Regex v3: More flexible, allows optional leading bullets/numbers, captures titles starting with Cap or *, captures content until next similar header or EOF.
+    pattern = re.compile(r"^(?:[\*\dIVX]+\.\s*)?([A-Z\*].*?)\s*?\n(.*?)(?=(?:^[\*\dIVX]+\.\s*)?[A-Z\*].*?\s*?\n|\Z)", re.MULTILINE | re.DOTALL)
+
+    matches = pattern.findall(recommendation_text)
+
+    if not matches:
+        logging.warning("Could not parse recommendation text into phases using pattern v3. Returning raw text.")
+        # Attempt to find a title even if phases fail
+        title_match = re.search(r"^=+\n\s*(.+?)\s*\n=+", recommendation_text, re.MULTILINE)
+        title = title_match.group(1).strip() if title_match else "Recommendation Details"
+        return {"Title": title, "Raw Text": recommendation_text}
+
+    for match in matches:
+         phase_name = match[0].strip().replace(':', '')
+         actions_text = match[1].strip()
+         # Split actions based on bullet points or numbered lists more robustly
+         actions = [a.strip() for a in re.split(r'\n\s*(?:\*|\-|\d+\.|\•)\s+', actions_text) if a.strip()]
+         phases[phase_name] = actions
+
+    # Attempt to find a title separately
+    title_match = re.search(r"^=+\n\s*(.+?)\s*\n=+", recommendation_text, re.MULTILINE)
+    if title_match:
+        phases["Title"] = title_match.group(1).strip()
+    elif any(k for k in phases if 'roadmap' in k.lower() or 'strategy' in k.lower()): # Use first phase if no main title found
+        phases["Title"] = f"Energy Transition Roadmap Summary"
+    else:
+        phases["Title"] = "Recommendation Details"
+
+    return phases
+
+def generate_html_roadmap(phases, company_name, output_dir="outputs"):
+    """Generates an HTML file visualizing the recommendation roadmap."""
+    if not phases:
+        logging.warning(f"Cannot generate HTML roadmap for {company_name}: No phases data provided.")
+        return None
+
+    is_raw_text = "Raw Text" in phases
+    title = phases.get("Title", f"Recommendation Details for: {company_name}")
+    filename_suffix = "_raw" if is_raw_text else ""
+    filename = os.path.join(output_dir, f"roadmap_{company_name.replace(' ', '_')}{filename_suffix}.html")
+
+    # Basic HTML and CSS structure
+    html_content = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{ font-family: sans-serif; line-height: 1.6; margin: 20px; background-color: #f4f4f4; color: #333; }}
+        .container {{ max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }}
+        h1 {{ color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+        h2 {{ color: #3498db; margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 5px; }}
+        ul {{ list-style: none; padding-left: 20px; /* Indent list items slightly */ }}
+        li {{ background: #ecf0f1; margin-bottom: 10px; padding: 10px 15px; border-radius: 4px; border-left: 5px solid #3498db; }}
+        li:hover {{ border-left-color: #2980b9; }}
+        .phase {{ margin-bottom: 30px; }}
+        pre {{ background-color: #eee; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }}
+        footer {{ text-align: center; margin-top: 30px; font-size: 0.9em; color: #777; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{title}</h1>
+"""
+    if is_raw_text:
+        # Display raw text in a <pre> tag if parsing failed
+        raw_text_safe = phases['Raw Text'].replace('<', '&lt;').replace('>', '&gt;')
+        html_content += f"        <p><em>Could not parse phases automatically. Displaying raw output:</em></p>\n"
+        html_content += f"        <pre>{raw_text_safe}</pre>\n"
+    else:
+        # Add phases to HTML
+        # Simple sort key based on common phase names
+        def sort_key(k):
+            k_lower = k.lower()
+            if 'immediate' in k_lower or 'now' in k_lower: return 1
+            if 'medium' in k_lower or 'mid-term' in k_lower or '2030' in k_lower : return 2
+            if 'long' in k_lower or '2040' in k_lower: return 3
+            if 'goal' in k_lower: return 4 # Put goals after actions
+            if 'consideration' in k_lower: return 5 # Considerations last
+            return 0 # Put things like 'Overall Strategy' first
+
+        sorted_phase_keys = sorted([k for k in phases if k != "Title"], key=sort_key)
+
+        for phase_key in sorted_phase_keys:
+             content = phases[phase_key]
+             if content:
+                 html_content += f"        <div class='phase'>\n"
+                 html_content += f"            <h2>{phase_key}</h2>\n"
+                 if isinstance(content, list): # Check if it's a list of actions
+                     html_content += f"            <ul>\n"
+                     for action in content:
+                         # Basic sanitization
+                         action_safe = action.replace('<', '&lt;').replace('>', '&gt;')
+                         html_content += f"                <li>{action_safe}</li>\n"
+                     html_content += f"            </ul>\n"
+                 else: # If not a list, treat as block text (like Overall Strategy)
+                     block_text_safe = str(content).replace('<', '&lt;').replace('>', '&gt;')
+                     html_content += f"            <p>{block_text_safe}</p>\n"
+
+                 html_content += f"        </div>\n"
+
+    html_content += """
+        <footer>Generated by the Energy Transition Pipeline MVP</footer>
+    </div>
+</body>
+</html>
+"""
+    # Write to file
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        logging.info(f"Successfully generated HTML roadmap: {filename}")
+        return filename
+    except Exception as e:
+        logging.error(f"Failed to write HTML roadmap file {filename}: {e}")
+        return None
 
 if __name__ == "__main__":
     main()
