@@ -4,3 +4,4 @@ annual_reports/Exxon Mobil.pdf
 venv
 .env
 outputs
+outputs/enhanced_dataset.csv

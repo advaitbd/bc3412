@@ -7,6 +7,8 @@ import numpy as np
 import re
 from dotenv import load_dotenv
 import argparse
+import json
+import html
 
 # --- Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -405,51 +407,133 @@ def generate_company_summary(company_row):
     return "\n".join(summary_list)
 
 def get_recommendations(company_name, enhanced_df, gemini_model):
-    if company_name not in enhanced_df['Name'].values:
-        logging.error(f"Company '{company_name}' not found in the enhanced dataset.")
-        print(f"Error: Company '{company_name}' not found.")
-        return
+    """Generates recommendations (textual and JSON roadmap) for a company using Gemini."""
+    logging.info(f"Attempting to generate recommendations for: {company_name}")
 
-    company_row = enhanced_df[enhanced_df['Name'] == company_name].iloc[0]
-
-    # Generate summaries
-    peer_summary = generate_peer_summary(company_name, enhanced_df)
-    company_summary = generate_company_summary(company_row)
-    num_peers = len(enhanced_df) - 1
-
-    # Format prompt
-    prompt = RECOMMENDATION_PROMPT_TEMPLATE.format(
-        num_peers=num_peers,
-        peer_summary=peer_summary,
-        company_name=company_name,
-        company_summary=company_summary
-    )
-
-    # Call Gemini API
     try:
-        logging.info(f"Sending recommendation request to Gemini for {company_name}...")
-        response = gemini_model.generate_content(prompt)
-        logging.info(f"Received recommendation from Gemini for {company_name}.")
+        company_row = enhanced_df[enhanced_df['Name'] == company_name]
+        if company_row.empty:
+            logging.error(f"Company '{company_name}' not found in the enhanced dataset.")
+            print(f"Error: Company '{company_name}' not found.")
+            return # Exit if company not found
 
-        # --- Add HTML Generation ---
-        try:
-            recommendation_text = response.text
-            print("\n" + recommendation_text) # Keep printing raw text
-
-            parsed_phases = parse_recommendation_output(recommendation_text)
-            html_file = generate_html_roadmap(parsed_phases, company_name)
-            if html_file:
-                print(f"\nRecommendation roadmap saved to: {html_file}")
-            else:
-                 print(f"\nFailed to generate HTML roadmap for {company_name}.")
-        except Exception as html_err:
-             logging.error(f"Error during HTML generation for {company_name}: {html_err}")
-             print("\nError occurred during HTML roadmap generation.")
-        # --- End Add HTML Generation ---
+        # Prepare data snippet for prompts (convert row to string/dict)
+        company_info = company_row.iloc[0].astype(str).to_dict()
+        company_info_str = {k: v for k, v in company_info.items() if pd.notna(v) and v != 'nan' and v != 'NaT'}
 
     except Exception as e:
-        logging.error(f"Error getting recommendations for {company_name} from Gemini: {e}")
-        print(f"Error: Could not generate recommendations for {company_name}.")
+         logging.error(f"Error preparing company data for {company_name}: {e}")
+         print(f"Error preparing data for {company_name}. Cannot generate recommendations.")
+         return # Exit on data prep error
+
+    # --- Prompt 1: Textual Recommendation --- #
+    prompt_text = f"""
+Generate a detailed energy transition recommendation report for the company: {company_name}.
+
+Peer Group Context ({len(enhanced_df) - 1} companies):
+{generate_peer_summary(company_name, enhanced_df)}
+
+Company Under Review: {company_name}
+Company Details:
+{generate_company_summary(company_row.iloc[0])}
+
+Task: Generate a practical, step-by-step energy transition roadmap for {company_name}. The roadmap should be ambitious yet achievable, considering the company's profile, current actions, and peer context. Structure it clearly into milestones aligned with typical climate goals:
+
+- Immediate actions (Now - 2030): Focus on foundational steps, quick wins, and compliance.
+- Medium-term actions (2030 - 2040): Focus on scaling proven technologies and deeper integration.
+- Long-term goals (2040 - 2050): Focus on achieving deep decarbonization and potentially net-zero targets.
+
+Be specific and suggest concrete actions within each timeframe (e.g., "Invest X% CapEx in solar PV by 2028", "Pilot green hydrogen project by 2035", "Achieve 50% reduction in Scope 1 & 2 emissions by 2040"). Align recommendations with IEA milestones or similar frameworks where applicable.
+
+Roadmap for {company_name}:
+"""
+
+    try:
+        logging.info(f"Sending TEXT recommendation request to Gemini for {company_name}...")
+        response_text = gemini_model.generate_content(prompt_text)
+        logging.info(f"Received TEXT recommendation from Gemini for {company_name}.")
+
+        # Print the general textual recommendation first
+        print("\n" + "="*30 + f" Textual Recommendation for {company_name} " + "="*30)
+        print(response_text.text)
+        print("="*80 + "\n")
+
+    except Exception as e:
+        logging.error(f"Error getting TEXT recommendations for {company_name} from Gemini: {e}")
+        print(f"Error: Could not generate textual recommendations for {company_name}.")
+        return # Don't proceed if textual recommendation fails
+
+    # --- Prompt 2: JSON Roadmap & HTML Generation --- #
+    try:
+        prompt_json = f"""
+Based on the following company data:
+{json.dumps(company_info_str, indent=2)}
+
+Generate a step-by-step energy transition roadmap FOR THE COMPANY ONLY, formatted STRICTLY as a JSON object.
+The JSON object should have keys representing distinct phases (e.g., "Immediate Actions (2024-2025)", "Medium-Term (2026-2030)", "Long-Term (2031-2050)", "Key Considerations").
+The value for each phase key should be a list of strings, where each string is a specific, actionable recommendation for that phase.
+DO NOT include any introductory text, explanations, or markdown formatting outside the JSON object. The output MUST start with `{{` and end with `}}`.
+
+Example Format:
+```json
+{{
+  "Phase 1 Name (Timeline)": [
+    "Action 1 for phase 1",
+    "Action 2 for phase 1"
+  ],
+  "Phase 2 Name (Timeline)": [
+    "Action 1 for phase 2",
+    "Action 2 for phase 2"
+  ],
+  "Key Considerations": [
+    "Consideration 1",
+    "Consideration 2"
+  ]
+}}
+```
+"""
+
+        logging.info(f"Sending JSON roadmap request to Gemini for {company_name}...")
+        response_json = gemini_model.generate_content(prompt_json)
+        logging.info(f"Received JSON roadmap response from Gemini for {company_name}.")
+
+        # Try parsing the JSON response
+        roadmap_data = None
+        html_file = None
+        raw_json_text = response_json.text
+        # Clean potential markdown code fences
+        if raw_json_text.strip().startswith("```json"):
+            raw_json_text = raw_json_text.strip()[7:-3].strip()
+        elif raw_json_text.strip().startswith("```"):
+            raw_json_text = raw_json_text.strip()[3:-3].strip()
+
+        try:
+            roadmap_data = json.loads(raw_json_text)
+            logging.info(f"Successfully parsed JSON roadmap for {company_name}.")
+            # Generate HTML using the parsed JSON data
+            html_file = generate_html_roadmap(roadmap_data, company_name)
+        except json.JSONDecodeError as json_err:
+            logging.error(f"Failed to parse JSON roadmap for {company_name}: {json_err}")
+            logging.debug(f"Raw response for JSON prompt:\n{raw_json_text}")
+            print(f"\nWarning: Could not parse JSON roadmap from Gemini. Saving raw response instead.")
+            # Fallback: Create a dict containing the raw text for generate_html_roadmap
+            roadmap_data_raw = {
+                "Title": f"Raw Roadmap Response for {company_name} (JSON Parsing Failed)",
+                "Raw Text": raw_json_text
+            }
+            html_file = generate_html_roadmap(roadmap_data_raw, company_name)
+        except Exception as gen_html_err:
+             logging.error(f"Error during HTML generation from roadmap data for {company_name}: {gen_html_err}")
+             print("\nError occurred during HTML roadmap generation.")
+
+        if html_file:
+            print(f"\nRecommendation roadmap saved to: {html_file}")
+        else:
+            print(f"\nFailed to generate or save HTML roadmap for {company_name}.")
+
+    except Exception as e:
+        logging.error(f"Error during JSON roadmap request/processing for {company_name}: {e}")
+        print(f"Error: Could not generate JSON roadmap for {company_name}.")
 
 # --- Main Execution Logic ---
 
@@ -531,10 +615,13 @@ def main():
                 logging.info(f"Attempting to generate recommendations for: {args.company}")
                 get_recommendations(args.company, enhanced_df, gemini_model)
             else:
-                # Temporarily hardcoding for BP run
-                company_to_generate = "BP"
-                logging.info(f"Hardcoded to generate recommendations for: {company_to_generate}")
-                get_recommendations(company_to_generate, enhanced_df, gemini_model)
+                # No specific company provided, generate for all companies in the dataset
+                all_companies = enhanced_df['Name'].unique()
+                logging.info(f"No company specified via --company arg. Generating recommendations for all {len(all_companies)} companies found.")
+                for company_name in all_companies:
+                    logging.info(f"--- Generating recommendations for: {company_name} ---")
+                    get_recommendations(company_name, enhanced_df, gemini_model)
+                    logging.info(f"--- Finished recommendations for: {company_name} ---")
 
         else:
             logging.error("Enhanced dataset is empty or could not be created. Cannot proceed to recommendations.")
@@ -549,55 +636,53 @@ def main():
         print(f"An unexpected error occurred. Check logs for details.")
 
 # --- Helper functions for HTML generation ---
-def parse_recommendation_output(recommendation_text):
-    """
-    Parses the structured recommendation text into a dictionary of phases and actions.
-    Expected format relies on headers like 'I. Immediate Actions', 'II. Medium-Term', 'III. Long-Term'.
-    """
-    phases = {}
-    # Regex v3: More flexible, allows optional leading bullets/numbers, captures titles starting with Cap or *, captures content until next similar header or EOF.
-    pattern = re.compile(r"^(?:[\*\dIVX]+\.\s*)?([A-Z\*].*?)\s*?\n(.*?)(?=(?:^[\*\dIVX]+\.\s*)?[A-Z\*].*?\s*?\n|\Z)", re.MULTILINE | re.DOTALL)
-
-    matches = pattern.findall(recommendation_text)
-
-    if not matches:
-        logging.warning("Could not parse recommendation text into phases using pattern v3. Returning raw text.")
-        # Attempt to find a title even if phases fail
-        title_match = re.search(r"^=+\n\s*(.+?)\s*\n=+", recommendation_text, re.MULTILINE)
-        title = title_match.group(1).strip() if title_match else "Recommendation Details"
-        return {"Title": title, "Raw Text": recommendation_text}
-
-    for match in matches:
-         phase_name = match[0].strip().replace(':', '')
-         actions_text = match[1].strip()
-         # Split actions based on bullet points or numbered lists more robustly
-         actions = [a.strip() for a in re.split(r'\n\s*(?:\*|\-|\d+\.|\•)\s+', actions_text) if a.strip()]
-         phases[phase_name] = actions
-
-    # Attempt to find a title separately
-    title_match = re.search(r"^=+\n\s*(.+?)\s*\n=+", recommendation_text, re.MULTILINE)
-    if title_match:
-        phases["Title"] = title_match.group(1).strip()
-    elif any(k for k in phases if 'roadmap' in k.lower() or 'strategy' in k.lower()): # Use first phase if no main title found
-        phases["Title"] = f"Energy Transition Roadmap Summary"
-    else:
-        phases["Title"] = "Recommendation Details"
-
-    return phases
-
 def generate_html_roadmap(phases, company_name, output_dir="outputs"):
     """Generates an HTML file visualizing the recommendation roadmap."""
     if not phases:
         logging.warning(f"Cannot generate HTML roadmap for {company_name}: No phases data provided.")
         return None
 
-    is_raw_text = "Raw Text" in phases
+    is_raw = "Raw Text" in phases
     title = phases.get("Title", f"Recommendation Details for: {company_name}")
-    filename_suffix = "_raw" if is_raw_text else ""
-    filename = os.path.join(output_dir, f"roadmap_{company_name.replace(' ', '_')}{filename_suffix}.html")
+    filename_suffix = "_raw" if is_raw else ""
+    filename = os.path.join(output_dir, f"{company_name.replace(' ', '_')}{filename_suffix}.html")
 
-    # Basic HTML and CSS structure
-    html_content = f"""
+    # --- Build Roadmap Content HTML --- #
+    roadmap_content_html = ""
+    if is_raw:
+        raw_text = phases.get("Raw Text", "Error: Raw text not found.")
+        escaped_raw_text = html.escape(raw_text)
+        roadmap_content_html = f'<pre>{escaped_raw_text}</pre>'
+    elif isinstance(phases, dict):
+        content_parts = []
+        for phase, actions in phases.items():
+            # Ensure actions is a list before proceeding
+            if isinstance(actions, list):
+                # Escape individual actions before creating list items
+                action_items_html = "".join([f'<li>{html.escape(str(action))}</li>' for action in actions])
+                # Escape the phase title
+                escaped_phase = html.escape(str(phase))
+                phase_html = f'''\
+                    <div class="phase">
+                        <div class="phase-title">{escaped_phase}</div>
+                        <ul class="actions">
+                            {action_items_html}
+                        </ul>
+                    </div>'''
+                content_parts.append(phase_html)
+            else:
+                 # Log if the value associated with a phase key is not a list
+                 logging.warning(f"Skipping phase '{phase}' in HTML generation: value is not a list (type: {type(actions)}).")
+        roadmap_content_html = "\n".join(content_parts)
+        # Fallback if no valid phases were processed
+        if not roadmap_content_html:
+            roadmap_content_html = "<p>No structured roadmap phases could be generated from the provided data.</p>"
+    else:
+        # Handle unexpected roadmap_data format
+        logging.error(f"Unexpected data type for roadmap_data: {type(phases)}")
+        roadmap_content_html = "<p>Error: Could not generate roadmap due to unexpected data format.</p>"
+
+    html_template = f"""\
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -620,45 +705,9 @@ def generate_html_roadmap(phases, company_name, output_dir="outputs"):
 <body>
     <div class="container">
         <h1>{title}</h1>
-"""
-    if is_raw_text:
-        # Display raw text in a <pre> tag if parsing failed
-        raw_text_safe = phases['Raw Text'].replace('<', '&lt;').replace('>', '&gt;')
-        html_content += f"        <p><em>Could not parse phases automatically. Displaying raw output:</em></p>\n"
-        html_content += f"        <pre>{raw_text_safe}</pre>\n"
-    else:
-        # Add phases to HTML
-        # Simple sort key based on common phase names
-        def sort_key(k):
-            k_lower = k.lower()
-            if 'immediate' in k_lower or 'now' in k_lower: return 1
-            if 'medium' in k_lower or 'mid-term' in k_lower or '2030' in k_lower : return 2
-            if 'long' in k_lower or '2040' in k_lower: return 3
-            if 'goal' in k_lower: return 4 # Put goals after actions
-            if 'consideration' in k_lower: return 5 # Considerations last
-            return 0 # Put things like 'Overall Strategy' first
-
-        sorted_phase_keys = sorted([k for k in phases if k != "Title"], key=sort_key)
-
-        for phase_key in sorted_phase_keys:
-             content = phases[phase_key]
-             if content:
-                 html_content += f"        <div class='phase'>\n"
-                 html_content += f"            <h2>{phase_key}</h2>\n"
-                 if isinstance(content, list): # Check if it's a list of actions
-                     html_content += f"            <ul>\n"
-                     for action in content:
-                         # Basic sanitization
-                         action_safe = action.replace('<', '&lt;').replace('>', '&gt;')
-                         html_content += f"                <li>{action_safe}</li>\n"
-                     html_content += f"            </ul>\n"
-                 else: # If not a list, treat as block text (like Overall Strategy)
-                     block_text_safe = str(content).replace('<', '&lt;').replace('>', '&gt;')
-                     html_content += f"            <p>{block_text_safe}</p>\n"
-
-                 html_content += f"        </div>\n"
-
-    html_content += """
+        <div class="roadmap-container">
+            {roadmap_content_html}
+        </div>
         <footer>Generated by the Energy Transition Pipeline MVP</footer>
     </div>
 </body>
@@ -668,7 +717,7 @@ def generate_html_roadmap(phases, company_name, output_dir="outputs"):
     try:
         os.makedirs(output_dir, exist_ok=True)
         with open(filename, 'w', encoding='utf-8') as f:
-            f.write(html_content)
+            f.write(html_template)
         logging.info(f"Successfully generated HTML roadmap: {filename}")
         return filename
     except Exception as e:
