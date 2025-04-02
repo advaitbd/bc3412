@@ -3,7 +3,7 @@ import pandas as pd
 
 st.title("Results")
 
-# st.session_state.forecast_df
+#st.session_state.forecast_df
     
 st.session_state.choice = st.radio("Evaluation Mode", options=["Effective Carbon Rate", "Net Effective Carbon Rate"])
 
