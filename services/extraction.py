@@ -1,4 +1,3 @@
-# services/extraction.py
 import logging
 import pandas as pd
 import numpy as np
@@ -6,7 +5,8 @@ from config.settings import ENHANCED_EXTRACTION_PROMPT
 from services.gemini_service import get_gemini_response
 from analysis.parser import parse_gemini_output
 import os
-def get_gemini_extraction(text, company_name, gemini_model):
+
+def get_gemini_extraction(text, company_name, client, model):
     """Extract structured information from report text using Gemini."""
     if not text:
         logging.warning(f"No text provided for Gemini extraction for {company_name}.")
@@ -19,7 +19,7 @@ def get_gemini_extraction(text, company_name, gemini_model):
 
     try:
         logging.info(f"Sending request to Gemini for {company_name}...")
-        extracted_text = get_gemini_response(prompt, gemini_model)
+        extracted_text = get_gemini_response(prompt, client, model)
         logging.info(f"Received response from Gemini for {company_name}.")
 
         if not extracted_text:
@@ -27,11 +27,11 @@ def get_gemini_extraction(text, company_name, gemini_model):
             parsed_data = parse_gemini_output("")  # Return empty structure
             return parsed_data
 
-        logging.debug(f"Raw Gemini Response for {company_name}:\n{extracted_text}")  # Log the raw response for debugging
+        logging.debug(f"Raw Gemini Response for {company_name}:\n{extracted_text}")
 
         # Basic check of response format
         expected_sections = ["Executive Summary:", "Strategic Priorities", "Financial Commitments",
-                            "Identified Risks", "Sustainability Milestones", "Action Classifications"]
+                             "Identified Risks", "Sustainability Milestones", "Action Classifications"]
 
         if not all(s in extracted_text for s in expected_sections):
             logging.warning(f"Gemini response for {company_name} might be incomplete or wrongly formatted:\n{extracted_text[:500]}...")
@@ -41,11 +41,10 @@ def get_gemini_extraction(text, company_name, gemini_model):
 
     except Exception as e:
         logging.error(f"Error calling Gemini API for {company_name}: {e}")
-        # Return dictionary with NaNs and False for actions in case of API error
         parsed_data = parse_gemini_output("")
         return parsed_data
 
-def process_companies(df, pdf_dir, gemini_model):
+def process_companies(df, pdf_dir, client, model):
     """Process each company's PDF report and extract structured data."""
     extracted_data_list = []
     total_companies = len(df)
@@ -69,7 +68,7 @@ def process_companies(df, pdf_dir, gemini_model):
             llm_results = parse_gemini_output("")
         else:
             # Get structured data from Gemini
-            llm_results = get_gemini_extraction(report_text, company_name, gemini_model)
+            llm_results = get_gemini_extraction(report_text, company_name, client, model)
 
         # Add company name to the results for merging
         llm_results['Name'] = company_name

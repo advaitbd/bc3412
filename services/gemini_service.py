@@ -1,47 +1,46 @@
-# services/gemini_service.py
 import os
 import logging
-import google.generativeai as genai
-from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 from config.settings import GEMINI_MODEL_NAME
 
-def load_config():
-    """Load API key configuration."""
-    load_dotenv()
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        logging.error("GOOGLE_API_KEY not found in environment variables or .env file.")
-        raise ValueError("API Key not configured.")
-    logging.info("API Key loaded successfully.")
-    return api_key
-
 def configure_gemini(api_key=None):
-    """Configure and return the Gemini client."""
+    """
+    Configure the Gemini client using the new google.genai package.
+    Returns a tuple (client, model) for use throughout the application.
+    """
     if not api_key:
-        api_key = load_config()
+        api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        logging.error("GEMINI_API_KEY not provided in environment.")
+        raise ValueError("Missing GEMINI_API_KEY.")
+    client = genai.Client(api_key=api_key)
+    model = GEMINI_MODEL_NAME
+    logging.info(f"Configured Gemini client with model: {model}")
+    return client, model
 
+def get_gemini_response(prompt, client, model):
+    """
+    Generate a structured response from Gemini using the new streaming API.
+    The response is streamed in JSON format.
+    """
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-        logging.info(f"Gemini client configured with model: {GEMINI_MODEL_NAME}")
-        return model
-    except Exception as e:
-        logging.error(f"Failed to configure Gemini: {e}")
-        raise
-
-def get_gemini_response(prompt, model):
-    """Get a response from the Gemini API."""
-    try:
-        logging.info("Sending request to Gemini...")
-        response = model.generate_content(prompt)
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)]
+            )
+        ]
+        config = types.GenerateContentConfig(response_mime_type="application/json")
+        response_text = ""
+        for chunk in client.models.generate_content_stream(
+            model=model,
+            contents=contents,
+            config=config,
+        ):
+            response_text += chunk.text
         logging.info("Received response from Gemini.")
-
-        # Handle potential safety blocks or empty responses
-        if not response.parts:
-            logging.warning("Gemini returned no content. Possible safety block or empty generation.")
-            return None
-
-        return response.text
+        return response_text
     except Exception as e:
         logging.error(f"Error calling Gemini API: {e}")
         return None

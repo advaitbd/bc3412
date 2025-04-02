@@ -93,10 +93,26 @@
                     <div class="col-md-6 mb-3">
                         <div class="alert alert-success">
                             <strong>{{ action }}</strong>
-                            {% if action + '_Justification' in company %}
-                            <p class="mb-0 small">
-                                {{ company[action + '_Justification'] }}
-                            </p>
+                            {% if action in company and company[action] == True
+                            %}
+                            <div class="col-md-6 mb-3">
+                                <div class="alert alert-success">
+                                    <strong>{{ action }}</strong>
+                                    {% if action + '_Justification' in company
+                                    and company[action + '_Justification'] %}
+                                    <p class="mb-0 small">
+                                        {{ company[action + '_Justification'] }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% elif action in company %}
+                            <div class="col-md-6 mb-3">
+                                <div class="alert alert-secondary">
+                                    <strong>{{ action }}</strong> - Not
+                                    identified
+                                </div>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
