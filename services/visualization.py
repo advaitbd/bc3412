@@ -23,10 +23,10 @@ def generate_pathway_visualization(company_name, json_data):
 
         # Get risk data if available
         risk_data = roadmap_data.get("risk_assessment", {})
-        climate_risk = risk_data.get("climate_risk", "Unknown")
-        carbon_risk = risk_data.get("carbon_price_risk", "Unknown")
-        tech_risk = risk_data.get("technology_risk", "Unknown")
-        countries = risk_data.get("countries", [])
+        climate_risk = risk_data.get("overall_climate_risk", "Unknown")
+        carbon_risk = risk_data.get("overall_carbon_price_risk", "Unknown")
+        tech_risk = risk_data.get("overall_technology_risk", "Unknown")
+        countries = risk_data.get("countries_evaluated", [])
 
         # Get External Factors data
         external_factors = roadmap_data.get("external_factors", {})

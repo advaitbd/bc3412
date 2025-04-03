@@ -59,13 +59,6 @@ If a specific piece of information is not explicitly mentioned in the text provi
 DETAILED_RECOMMENDATION_PROMPT = """
 You are an expert energy transition consultant creating a detailed, time-based roadmap of recommendations for {company_name}.
 
-The following RISK SCORES come from our in-house risk evaluation models in the 'risk_eval' module:
-- Climate Risk: {climate_risk} (calculated by analyzing temperature rise forecasts)
-- Carbon Price Risk: {carbon_risk} (calculated by evaluating carbon tax/subsidy forecasting)
-- Technology Risk: {tech_risk} (calculated by forecasting low-carbon technology adoption rates)
-
-These risk scores are not user-generated but derived from the data in our system. Use them as critical inputs for the recommendations.
-
 COMPANY PROFILE FROM ANNUAL REPORT:
 - Executive Summary: {executive_summary}
 - Strategic Priorities: {strategic_priorities}
@@ -78,7 +71,15 @@ FINANCIAL VIABILITY ASSESSMENT:
 - Current Investment Areas: {project_allocations}
 
 RISK EVALUATION:
+The following RISK SCORES come from our in-house risk evaluation models in the 'risk_eval' module:
+- Climate Risk: calculated by analyzing temperature rise forecasts
+- Carbon Price Risk: calculated by evaluating carbon tax/subsidy forecasting
+- Technology Risk: calculated by forecasting low-carbon technology adoption rates
+
+Use these scores when filling in the score field for each factor
+
 {risk_assessment}
+
 
 {actions_summary}
 
