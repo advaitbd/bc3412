@@ -25,6 +25,18 @@ This project implements a data pipeline MVP (Minimum Viable Product) designed to
 │   ├── Pathfinder Data.xlsx # Initial company data
 │   └── pdfs/
 │       └── [CompanyName].pdf # Input PDF reports (e.g., BP.pdf)
+├── risk_eval/          # Risk Evaluation Models
+    ├── Data            # contain the datasets used for risk evaluations
+        ├── carbon_pricing_filtered.csv
+        ├── temprisedata2.csv
+        ├── trade_tech_filtered.csv
+
+    ├── pages           # tabs for UI
+        ├── Carbon_Visualisation
+        ├── Climate_Forecast
+        └── Technology_Forecast
+    ├── results         # store results
+    └── Carbon Forecast.py   # main file to run the streamlit ui
 ├── main.py             # Main script for the pipeline execution
 ├── outputs/
 │   ├── enhanced_dataset.csv # Output CSV with integrated and classified data
@@ -119,5 +131,8 @@ Key Python libraries used:
 *   `python-dotenv`
 *   `numpy`
 *   `argparse`
+*   `streamlit`
+*   `matplotlib`
+*   `statsmodels`
 
 See `requirements.txt` for the full list.
