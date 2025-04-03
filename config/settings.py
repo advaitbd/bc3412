@@ -22,7 +22,7 @@ ACTION_CATEGORIES = [
 ENHANCED_EXTRACTION_PROMPT = """
 Analyze the following annual report text for "{company_name}" and extract the explicitly stated information below.
 Structure the output EXACTLY as follows, using the headers provided, and ensure your entire response is valid JSON.
-If a specific piece of information is not explicitly mentioned in the text provided, state "Not Mentioned".
+If a specific piece of information is not explicitly mentioned in the text provided, state "Not Mentioned". For the TRUE / FALSE classifications, format it as "TRUE" or "FALSE" ONLY.
 
 {{
   "Executive Summary": "[Provide a concise summary of the company's business model and overall strategy as stated.]",
@@ -32,13 +32,13 @@ If a specific piece of information is not explicitly mentioned in the text provi
   "Sustainability Milestones": "[List explicitly stated quantitative milestones, targets, years, and scope coverage (Scope 1, 2, 3) related to emissions or other sustainability goals. If none mentioned, state 'Not Mentioned'.]",
   "Countries of Operation": "[List all countries where the company explicitly states it has operations, assets, production facilities, or significant business activities. Provide as a comma-separated list. If none mentioned, state 'Not Mentioned'.]",
   "Action Classifications": {{
-      "Renewables": "[TRUE/FALSE]",
-      "Energy Efficiency": "[TRUE/FALSE]",
-      "Electrification": "[TRUE/FALSE]",
-      "Bioenergy": "[TRUE/FALSE]",
-      "CCUS": "[TRUE/FALSE]",
-      "Hydrogen Fuel": "[TRUE/FALSE]",
-      "Behavioral Changes": "[TRUE/FALSE]"
+      "Renewables": "TRUE/FALSE",
+      "Energy Efficiency": "TRUE/FALSE",
+      "Electrification": "TRUE/FALSE",
+      "Bioenergy": "TRUE/FALSE",
+      "CCUS": "TRUE/FALSE",
+      "Hydrogen Fuel": "TRUE/FALSE",
+      "Behavioral Changes": "TRUE/FALSE"
   }},
   "Action Justifications": {{
       "Renewables_Justification": "[If Renewables is TRUE, provide a brief justification based on the text. Otherwise, leave blank.]",
@@ -59,6 +59,13 @@ If a specific piece of information is not explicitly mentioned in the text provi
 DETAILED_RECOMMENDATION_PROMPT = """
 You are an expert energy transition consultant creating a detailed, time-based roadmap of recommendations for {company_name}.
 
+The following RISK SCORES come from our in-house risk evaluation models in the 'risk_eval' module:
+- Climate Risk: {climate_risk} (calculated by analyzing temperature rise forecasts)
+- Carbon Price Risk: {carbon_risk} (calculated by evaluating carbon tax/subsidy forecasting)
+- Technology Risk: {tech_risk} (calculated by forecasting low-carbon technology adoption rates)
+
+These risk scores are not user-generated but derived from the data in our system. Use them as critical inputs for the recommendations.
+
 COMPANY PROFILE FROM ANNUAL REPORT:
 - Executive Summary: {executive_summary}
 - Strategic Priorities: {strategic_priorities}
@@ -75,8 +82,9 @@ RISK EVALUATION:
 
 {actions_summary}
 
-TASK: Create a detailed energy transition roadmap for {company_name} with the following specifications.
-- Your recommendations MUST take into account the risk assessment results.
+TASK: Create a detailed energy transition roadmap for {company_name} with the following specifications:
+- Organize your analysis into External Factors, Internal Factors, Factor Rankings, and Time-based Recommendations.
+- Your recommendations MUST take into account the risk assessment results. Use these results to fill the score for each factor.
 - For high climate risk regions, prioritize adaptation measures and faster timelines.
 - For high carbon price risk regions, focus on emissions reduction and cost mitigation.
 - For high technology risk regions, recommend incremental technology adoption strategies.
@@ -85,6 +93,57 @@ CRITICAL: YOU MUST OUTPUT YOUR ENTIRE RESPONSE IN VALID JSON FORMAT USING THIS E
 
 {{
   "company": "{company_name}",
+  "external_factors": {{
+    "climate_risk": {{
+      "score": "High/Medium/Low",
+      "interpretation": "Detailed interpretation of climate risk for this company",
+      "impact": "How this impacts the company's operations and strategy"
+    }},
+    "carbon_price_risk": {{
+      "score": "High/Medium/Low",
+      "interpretation": "Detailed interpretation of carbon price risk for this company",
+      "impact": "How this impacts the company's financial outlook"
+    }},
+    "technology_risk": {{
+      "score": "High/Medium/Low",
+      "interpretation": "Detailed interpretation of technology risk for this company",
+      "impact": "How this impacts the company's competitive position"
+    }},
+    "policy_environment": "Analysis of the regulatory environment in the company's operating regions"
+  }},
+  "internal_factors": {{
+    "operational_feasibility": {{
+      "assessment": "High/Medium/Low",
+      "details": "Analysis of the company's operational capacity to implement changes"
+    }},
+    "financial_viability": {{
+      "assessment": "High/Medium/Low",
+      "details": "Analysis of the company's financial capacity to fund the transition"
+    }},
+    "existing_capabilities": {{
+      "assessment": "Strong/Moderate/Weak",
+      "details": "Assessment of the company's existing technological and operational capabilities"
+    }},
+    "organizational_readiness": {{
+      "assessment": "High/Medium/Low",
+      "details": "Assessment of the company's cultural and organizational readiness for change"
+    }}
+  }},
+  "factor_rankings": [
+    {{
+      "factor": "Name of factor (e.g., Climate Risk)",
+      "rank": 1,
+      "importance": "Critical/High/Medium/Low",
+      "justification": "Why this factor ranks highest in importance for this company"
+    }},
+    {{
+      "factor": "Name of factor",
+      "rank": 2,
+      "importance": "Critical/High/Medium/Low",
+      "justification": "Why this factor ranks second in importance"
+    }}
+    // Include all remaining factors in ranked order
+  ],
   "timeframes": [
     {{
       "name": "Immediate actions (Now - 2030)",

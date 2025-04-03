@@ -28,7 +28,187 @@ def generate_pathway_visualization(company_name, json_data):
         tech_risk = risk_data.get("technology_risk", "Unknown")
         countries = risk_data.get("countries", [])
 
-        # Create HTML file with simple visualization
+        # Get External Factors data
+        external_factors = roadmap_data.get("external_factors", {})
+
+        # Get Internal Factors data
+        internal_factors = roadmap_data.get("internal_factors", {})
+
+        # Get Factor Rankings
+        factor_rankings = roadmap_data.get("factor_rankings", [])
+
+        # Generate External Factors HTML
+        external_factors_html = ""
+        if external_factors:
+            external_factors_html = """
+            <div class="factors-section">
+                <h2>External Factors</h2>
+            """
+
+            # Climate Risk
+            climate_data = external_factors.get("climate_risk", {})
+            if climate_data:
+                climate_score = climate_data.get("score", "Unknown")
+                external_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Climate Risk</h3>
+                    <div class="risk-indicator risk-{climate_score.lower()}">{climate_score}</div>
+                    <div class="factor-details">
+                        <p><strong>Interpretation:</strong> {climate_data.get("interpretation", "Not provided")}</p>
+                        <p><strong>Impact:</strong> {climate_data.get("impact", "Not provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Carbon Price Risk
+            carbon_data = external_factors.get("carbon_price_risk", {})
+            if carbon_data:
+                carbon_score = carbon_data.get("score", "Unknown")
+                external_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Carbon Price Risk</h3>
+                    <div class="risk-indicator risk-{carbon_score.lower()}">{carbon_score}</div>
+                    <div class="factor-details">
+                        <p><strong>Interpretation:</strong> {carbon_data.get("interpretation", "Not provided")}</p>
+                        <p><strong>Impact:</strong> {carbon_data.get("impact", "Not provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Technology Risk
+            tech_data = external_factors.get("technology_risk", {})
+            if tech_data:
+                tech_score = tech_data.get("score", "Unknown")
+                external_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Technology Risk</h3>
+                    <div class="risk-indicator risk-{tech_score.lower()}">{tech_score}</div>
+                    <div class="factor-details">
+                        <p><strong>Interpretation:</strong> {tech_data.get("interpretation", "Not provided")}</p>
+                        <p><strong>Impact:</strong> {tech_data.get("impact", "Not provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Policy Environment
+            policy_env = external_factors.get("policy_environment", "No policy analysis provided")
+            external_factors_html += f"""
+            <div class="factor-card">
+                <h3>Policy Environment</h3>
+                <div class="factor-details">
+                    <p>{policy_env}</p>
+                </div>
+            </div>
+            """
+
+            external_factors_html += "</div>"
+
+        # Generate Internal Factors HTML
+        internal_factors_html = ""
+        if internal_factors:
+            internal_factors_html = """
+            <div class="factors-section">
+                <h2>Internal Factors</h2>
+            """
+
+            # Operational Feasibility
+            op_data = internal_factors.get("operational_feasibility", {})
+            if op_data:
+                op_assessment = op_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Operational Feasibility</h3>
+                    <div class="assessment-indicator assessment-{op_assessment.lower()}">{op_assessment}</div>
+                    <div class="factor-details">
+                        <p>{op_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Financial Viability
+            fin_data = internal_factors.get("financial_viability", {})
+            if fin_data:
+                fin_assessment = fin_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Financial Viability</h3>
+                    <div class="assessment-indicator assessment-{fin_assessment.lower()}">{fin_assessment}</div>
+                    <div class="factor-details">
+                        <p>{fin_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Existing Capabilities
+            cap_data = internal_factors.get("existing_capabilities", {})
+            if cap_data:
+                cap_assessment = cap_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Existing Capabilities</h3>
+                    <div class="assessment-indicator assessment-{cap_assessment.lower()}">{cap_assessment}</div>
+                    <div class="factor-details">
+                        <p>{cap_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Organizational Readiness
+            org_data = internal_factors.get("organizational_readiness", {})
+            if org_data:
+                org_assessment = org_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Organizational Readiness</h3>
+                    <div class="assessment-indicator assessment-{org_assessment.lower()}">{org_assessment}</div>
+                    <div class="factor-details">
+                        <p>{org_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            internal_factors_html += "</div>"
+
+        # Generate Factor Rankings HTML
+        factor_rankings_html = ""
+        if factor_rankings:
+            factor_rankings_html = """
+            <div class="factors-section">
+                <h2>Factor Rankings</h2>
+                <table class="rankings-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Factor</th>
+                            <th>Importance</th>
+                            <th>Justification</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            """
+
+            for factor in factor_rankings:
+                rank = factor.get("rank", "")
+                factor_name = factor.get("factor", "Unknown")
+                importance = factor.get("importance", "Unknown")
+                justification = factor.get("justification", "No justification provided")
+
+                factor_rankings_html += f"""
+                <tr>
+                    <td>{rank}</td>
+                    <td>{factor_name}</td>
+                    <td class="importance-{importance.lower()}">{importance}</td>
+                    <td>{justification}</td>
+                </tr>
+                """
+
+            factor_rankings_html += """
+                    </tbody>
+                </table>
+            </div>
+            """
+
+        # Create HTML file with visualization
         html_file = os.path.join(vis_dir, f"{company_name}_pathway.html")
 
         # Generate timeframes and their actions for the HTML structure
@@ -143,6 +323,88 @@ def generate_pathway_visualization(company_name, json_data):
                 h1 {{
                     margin: 0;
                     font-size: 28px;
+                }}
+                .factors-section {{
+                    background-color: white;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    padding: 20px;
+                    margin-bottom: 20px;
+                }}
+                .factor-card {{
+                    border: 1px solid #e0e0e0;
+                    border-radius: 5px;
+                    padding: 15px;
+                    margin-bottom: 15px;
+                    background-color: #ffffff;
+                }}
+                .factor-card h3 {{
+                    margin-top: 0;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 10px;
+                }}
+                .risk-indicator, .assessment-indicator {{
+                    display: inline-block;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                }}
+                .risk-high, .assessment-low {{
+                    background-color: #f8d7da;
+                    color: #721c24;
+                    border: 1px solid #f5c6cb;
+                }}
+                .risk-medium, .assessment-medium {{
+                    background-color: #fff3cd;
+                    color: #856404;
+                    border: 1px solid #ffeeba;
+                }}
+                .risk-low, .assessment-high, .assessment-strong {{
+                    background-color: #d4edda;
+                    color: #155724;
+                    border: 1px solid #c3e6cb;
+                }}
+                .assessment-moderate {{
+                    background-color: #fff3cd;
+                    color: #856404;
+                    border: 1px solid #ffeeba;
+                }}
+                .assessment-weak {{
+                    background-color: #f8d7da;
+                    color: #721c24;
+                    border: 1px solid #f5c6cb;
+                }}
+                .risk-unknown, .assessment-unknown {{
+                    background-color: #e2e3e5;
+                    color: #383d41;
+                    border: 1px solid #d6d8db;
+                }}
+                .rankings-table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                }}
+                .rankings-table th, .rankings-table td {{
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                }}
+                .rankings-table th {{
+                    background-color: #f2f2f2;
+                }}
+                .importance-critical {{
+                    color: #721c24;
+                    font-weight: bold;
+                }}
+                .importance-high {{
+                    color: #e74c3c;
+                    font-weight: bold;
+                }}
+                .importance-medium {{
+                    color: #f39c12;
+                }}
+                .importance-low {{
+                    color: #27ae60;
                 }}
                 .pathway-container {{
                     display: flex;
@@ -283,26 +545,6 @@ def generate_pathway_visualization(company_name, json_data):
                     border-radius: 4px;
                     font-weight: bold;
                 }}
-                .risk-high {{
-                    background-color: #f8d7da;
-                    color: #721c24;
-                    border: 1px solid #f5c6cb;
-                }}
-                .risk-medium {{
-                    background-color: #fff3cd;
-                    color: #856404;
-                    border: 1px solid #ffeeba;
-                }}
-                .risk-low {{
-                    background-color: #d4edda;
-                    color: #155724;
-                    border: 1px solid #c3e6cb;
-                }}
-                .risk-unknown {{
-                    background-color: #e2e3e5;
-                    color: #383d41;
-                    border: 1px solid #d6d8db;
-                }}
                 .country-list {{
                     margin-top: 10px;
                     font-style: italic;
@@ -369,6 +611,10 @@ def generate_pathway_visualization(company_name, json_data):
                         <button onclick="collapseAll()">Collapse All</button>
                     </div>
                 </header>
+
+                {external_factors_html}
+                {internal_factors_html}
+                {factor_rankings_html}
 
                 <div class="pathway-container">
                     <div class="pathway">
@@ -488,7 +734,7 @@ def generate_pathway_visualization(company_name, json_data):
         with open(html_file, 'w', encoding='utf-8') as f:
             f.write(html_content)
 
-        logging.info(f"Simple HTML pathway visualization saved to: {html_file}")
+        logging.info(f"Enhanced HTML pathway visualization saved to: {html_file}")
 
         return html_file
 

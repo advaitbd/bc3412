@@ -1,5 +1,6 @@
 import os
 import logging
+from matplotlib.pyplot import clim
 import pandas as pd
 import json
 import re
@@ -42,6 +43,11 @@ def get_recommendations(company_name, enhanced_df, client, model):
 
         # Run risk assessment if countries are available
         risk_assessment = ""
+        risk_results = ""
+        climate_risk = ""
+        carbon_risk = ""
+        tech_risk = ""
+
         if countries:
             print(f"Running risk assessment for {company_name} in: {', '.join(countries)}")
             risk_results = run_comprehensive_risk_assessment(countries)
@@ -125,6 +131,9 @@ Country-Specific Climate Risks:
         # Create the prompt with the company's data
         prompt_text = DETAILED_RECOMMENDATION_PROMPT.format(
             company_name=company_name,
+            climate_risk=climate_risk,  # pass in from risk_results
+            carbon_risk=carbon_risk,
+            tech_risk=tech_risk,
             executive_summary=fields['executive_summary'],
             strategic_priorities=fields['strategic_priorities'],
             financial_commitments=fields['financial_commitments'],

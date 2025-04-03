@@ -25,7 +25,7 @@ def parse_gemini_output(response_text):
                     # Remove brackets if present
                     clean_value = classification.strip().upper()
                     clean_value = clean_value.replace('[', '').replace(']', '')
-                    data[action] = clean_value == "TRUE"
+                    data[action] = clean_value.lower() == "true"
                 else:
                     data[action] = bool(classification)
             logging.debug(f"Flattened action classifications: { {k: data[k] for k in action_classifications} }")
