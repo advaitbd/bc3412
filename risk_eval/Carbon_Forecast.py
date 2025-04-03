@@ -2,27 +2,30 @@ import streamlit as st
 import pandas as pd
 from statsmodels.tsa.api import Holt #(Trend + Level - Seasonality)
 
-if "df" not in st.session_state:
-    st.session_state.df = pd.read_csv("Data/carbon_pricing_filtered.csv")
+if "carbon_df" not in st.session_state:
+    st.session_state.carbon_df = pd.read_csv("Data/carbon_pricing_filtered.csv")
 
-st.title("Carbon Pricing")
-countries = st.multiselect(label="Countries", options=sorted(st.session_state.df.AREA.unique()), placeholder="You may select more than 1 country.")
+if "results" not in st.session_state:
+    st.session_state.results = {}
+
+st.title("Risk Evaluation for Carbon Pricing")
+countries = st.multiselect(label="Countries", options=sorted(st.session_state.carbon_df.AREA.unique()), placeholder="You may select more than 1 country.")
 print(countries)
 
 if countries:
-    sector = st.radio(label="Industry", options=sorted(st.session_state.df["SECTOR"].loc[st.session_state.df["AREA"].isin(countries)].unique()))
+    sector = st.radio(label="Industry", options=sorted(st.session_state.carbon_df["SECTOR"].loc[st.session_state.carbon_df["AREA"].isin(countries)].unique()))
     print(sector)
 
     if sector:
-        sources = st.multiselect(label="Scope", options=sorted(st.session_state.df["SOURCE"].loc[(st.session_state.df["AREA"].isin(countries)) &
-                                                                                                  (st.session_state.df["SECTOR"]==sector)].unique()))
+        sources = st.multiselect(label="Scope", options=sorted(st.session_state.carbon_df["SOURCE"].loc[(st.session_state.carbon_df["AREA"].isin(countries)) &
+                                                                                                  (st.session_state.carbon_df["SECTOR"]==sector)].unique()))
         print(sources)
         
         if sources:
             if st.button("Forecast"):
-                fil_df = st.session_state.df.loc[(st.session_state.df["AREA"].isin(countries)) & 
-                                                (st.session_state.df["SECTOR"] == sector) & 
-                                                (st.session_state.df["SOURCE"].isin(sources))]
+                fil_df = st.session_state.carbon_df.loc[(st.session_state.carbon_df["AREA"].isin(countries)) & 
+                                                (st.session_state.carbon_df["SECTOR"] == sector) & 
+                                                (st.session_state.carbon_df["SOURCE"].isin(sources))]
                 
                 st.header("Analysis")
                 
@@ -43,7 +46,7 @@ if countries:
                         st.warning("Carbon tax used only")
 
 
-                    st.session_state.forecast_df = pd.DataFrame()
+                    st.session_state.forecast_carbon_df = pd.DataFrame()
                     ecr_change_df = {}
                     necr_change_df = {}
 
@@ -82,7 +85,7 @@ if countries:
                             new_df["AREA"] = country
                             new_df["SOURCE"] = source
 
-                            st.session_state.forecast_df = pd.concat([st.session_state.forecast_df, new_df])
+                            st.session_state.forecast_carbon_df = pd.concat([st.session_state.forecast_carbon_df, new_df])
 
                             # show individual changes
                             
@@ -93,10 +96,12 @@ if countries:
                     change = pd.DataFrame(ecr_change_df).values.sum()
                     if change > 0:
                         st.markdown("Overall: :red[High Risk]")
+                        st.session_state.results["Carbon Price"] = "High"
                     else:
                         st.markdown("Overall: :green[Low Risk]")
-                    # st.write("Overall", change)
+                        st.session_state.results["Carbon Price"] = "Low"
                     st.dataframe(ecr_change_df)
+                    
 
 
                     st.subheader("Net Effective Carbon Rate")
@@ -104,12 +109,11 @@ if countries:
                     
                     if change > 0:
                         st.markdown("Overall: :red[High Risk]")
+                        st.session_state.results["Carbon Subsidies"] = "High"
                     else:
                         st.markdown("Overall: :green[Low Risk]")
-                    # st.write("Overall", change)
+                        st.session_state.results["Carbon Subsidies"] = "Low"
                     st.dataframe(necr_change_df)
 
-                    
-# TODO integrate the tech and climate  
-# TODO export into a csv (climate/policy/low-carbon products)
+
     
