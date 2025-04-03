@@ -20,9 +20,12 @@ def parse_gemini_output(response_text):
         if "Action Classifications" in data:
             action_classifications = data.pop("Action Classifications")
             for action, classification in action_classifications.items():
-                # If classification is a string, convert it to a boolean:
+                # If classification is a string, convert it to a boolean with better handling for bracketed values:
                 if isinstance(classification, str):
-                    data[action] = classification.strip().upper() == "TRUE"
+                    # Remove brackets if present
+                    clean_value = classification.strip().upper()
+                    clean_value = clean_value.replace('[', '').replace(']', '')
+                    data[action] = clean_value == "TRUE"
                 else:
                     data[action] = bool(classification)
             logging.debug(f"Flattened action classifications: { {k: data[k] for k in action_classifications} }")
