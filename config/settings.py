@@ -18,7 +18,7 @@ ACTION_CATEGORIES = [
     "Behavioral Changes"
 ]
 
-# Updated Extraction prompt template (now requesting justifications for actions)
+# Updated Extraction prompt template (now requesting countries of operation and justifications for actions)
 ENHANCED_EXTRACTION_PROMPT = """
 Analyze the following annual report text for "{company_name}" and extract the explicitly stated information below.
 Structure the output EXACTLY as follows, using the headers provided, and ensure your entire response is valid JSON.
@@ -30,6 +30,7 @@ If a specific piece of information is not explicitly mentioned in the text provi
   "Financial Commitments (Energy Transition)": "[State SPECIFICALLY: a) % of CapEx dedicated to energy transition, b) Absolute CapEx amount in local currency, c) Any planned increase over time, d) Any specific project allocations. Provide exact figures and timeframes if mentioned. If none found, state 'Not Mentioned'.]",
   "Identified Risks (Physical and Transition)": "[List explicitly mentioned physical risks (e.g., climate impacts) and transition risks (e.g., policy changes, market shifts) related to energy/climate. If none mentioned, state 'Not Mentioned'.]",
   "Sustainability Milestones": "[List explicitly stated quantitative milestones, targets, years, and scope coverage (Scope 1, 2, 3) related to emissions or other sustainability goals. If none mentioned, state 'Not Mentioned'.]",
+  "Countries of Operation": "[List all countries where the company explicitly states it has operations, assets, production facilities, or significant business activities. Provide as a comma-separated list. If none mentioned, state 'Not Mentioned'.]",
   "Action Classifications": {{
       "Renewables": "[TRUE/FALSE]",
       "Energy Efficiency": "[TRUE/FALSE]",
@@ -69,9 +70,16 @@ FINANCIAL VIABILITY ASSESSMENT:
 - CapEx for Sustainability: {transition_capex}
 - Current Investment Areas: {project_allocations}
 
+RISK EVALUATION:
+{risk_assessment}
+
 {actions_summary}
 
 TASK: Create a detailed energy transition roadmap for {company_name} with the following specifications.
+- Your recommendations MUST take into account the risk assessment results.
+- For high climate risk regions, prioritize adaptation measures and faster timelines.
+- For high carbon price risk regions, focus on emissions reduction and cost mitigation.
+- For high technology risk regions, recommend incremental technology adoption strategies.
 
 CRITICAL: YOU MUST OUTPUT YOUR ENTIRE RESPONSE IN VALID JSON FORMAT USING THIS EXACT STRUCTURE:
 
@@ -92,7 +100,8 @@ CRITICAL: YOU MUST OUTPUT YOUR ENTIRE RESPONSE IN VALID JSON FORMAT USING THIS E
                 "peer_alignment": "How this aligns with industry standards or peer practices",
                 "financial_viability": "Analysis of financial feasibility based on company CapEx",
                 "operational_feasibility": "Assessment of implementation feasibility",
-                "target_alignment": "How this helps meet company's stated targets"
+                "target_alignment": "How this helps meet company's stated targets",
+                "risk_mitigation": "How this addresses identified risks in the risk assessment"
               }}
             }}
           ]

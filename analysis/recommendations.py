@@ -7,6 +7,7 @@ from config.settings import DETAILED_RECOMMENDATION_PROMPT, DEFAULT_OUTPUT_DIR
 from services.gemini_service import get_gemini_response
 from services.visualization import generate_pathway_visualization  # Import visualization service
 from utils.file_utils import ensure_directory_exists, save_text_to_file
+from risk_eval.risk_evaluator import run_comprehensive_risk_assessment
 
 def get_recommendations(company_name, enhanced_df, client, model):
     """Generate recommendations for a company using Gemini based on extracted data."""
@@ -18,6 +19,58 @@ def get_recommendations(company_name, enhanced_df, client, model):
             logging.error(f"Company '{company_name}' not found in the enhanced dataset.")
             print(f"Error: Company '{company_name}' not found.")
             return  # Exit if company not found
+
+        # Extract countries of operation
+        countries = []
+        if 'Countries of Operation' in company_row.columns and not pd.isna(company_row['Countries of Operation'].iloc[0]):
+            countries_text = company_row['Countries of Operation'].iloc[0]
+            if countries_text != "Not Mentioned":
+                countries = [c.strip() for c in countries_text.split(',')]
+
+        # If no countries found, prompt the user
+        if not countries:
+            print(f"\nNo countries of operation found for {company_name} in the annual report.")
+            countries_input = input(f"Please enter comma-separated list of countries where {company_name} operates: ")
+            if countries_input.strip():
+                countries = [c.strip() for c in countries_input.split(',')]
+                # Update the dataframe
+                if 'Countries of Operation' in company_row.columns:
+                    enhanced_df.loc[enhanced_df['Name'] == company_name, 'Countries of Operation'] = countries_input
+                else:
+                    enhanced_df['Countries of Operation'] = None
+                    enhanced_df.loc[enhanced_df['Name'] == company_name, 'Countries of Operation'] = countries_input
+
+        # Run risk assessment if countries are available
+        risk_assessment = ""
+        if countries:
+            print(f"Running risk assessment for {company_name} in: {', '.join(countries)}")
+            risk_results = run_comprehensive_risk_assessment(countries)
+
+            climate_risk = risk_results.get('climate_risk', {}).get('overall_risk', 'Unknown')
+            carbon_risk = risk_results.get('carbon_price_risk', {}).get('overall_risk', 'Unknown')
+            tech_risk = risk_results.get('technology_risk', {}).get('overall_risk', 'Unknown')
+
+            print(f"Risk Assessment Results:")
+            print(f"- Climate Risk: {climate_risk}")
+            print(f"- Carbon Price Risk: {carbon_risk}")
+            print(f"- Technology Risk: {tech_risk}")
+
+            # Format risk assessment for prompt
+            risk_assessment = f"""
+RISK ASSESSMENT RESULTS:
+- Climate Risk: {climate_risk}
+- Carbon Price Risk: {carbon_risk}
+- Technology Risk: {tech_risk}
+
+Country-Specific Climate Risks:
+"""
+            for country, data in risk_results.get('climate_risk', {}).get('country_risks', {}).items():
+                risk_assessment += f"- {country}: {data.get('risk_level', 'Unknown')}"
+                if 'forecast_temp_rise' in data:
+                    risk_assessment += f" (Forecasted temp rise: {data['forecast_temp_rise']}°C)"
+                risk_assessment += "\n"
+        else:
+            risk_assessment = "RISK ASSESSMENT: No country data available for risk assessment."
 
         # Extract identified actions and their justifications
         action_cols = ["Renewables", "Energy Efficiency", "Electrification", "Bioenergy",
@@ -79,7 +132,8 @@ def get_recommendations(company_name, enhanced_df, client, model):
             risks_info=fields['risks_info'],
             transition_capex=transition_capex,
             project_allocations=project_allocations,
-            actions_summary=actions_summary
+            actions_summary=actions_summary,
+            risk_assessment=risk_assessment
         )
 
         logging.info(f"Sending recommendation request to Gemini for {company_name}...")
@@ -126,6 +180,15 @@ def get_recommendations(company_name, enhanced_df, client, model):
                 else:
                     logging.warning("Could not extract JSON pattern, attempting to structure response...")
                     roadmap_data = structure_response_as_json(response_text, company_name)
+
+            # Add risk assessment data to JSON
+            if countries:
+                roadmap_data["risk_assessment"] = {
+                    "climate_risk": risk_results.get('climate_risk', {}).get('overall_risk', 'Unknown'),
+                    "carbon_price_risk": risk_results.get('carbon_price_risk', {}).get('overall_risk', 'Unknown'),
+                    "technology_risk": risk_results.get('technology_risk', {}).get('overall_risk', 'Unknown'),
+                    "countries": countries
+                }
 
             json_file = os.path.join(output_dir, f"{company_name}_roadmap.json")
             with open(json_file, 'w', encoding='utf-8') as f:
@@ -202,7 +265,10 @@ def structure_response_as_json(text, company_name):
                 recommendation_data = {
                     "title": title,
                     "details": details,
-                    "reference": reference
+                    "reference": reference,
+                    "justification": {
+                        "risk_mitigation": "Based on risk assessment"
+                    }
                 }
                 category_data["recommendations"].append(recommendation_data)
             if category_data["recommendations"]:

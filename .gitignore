@@ -4,6 +4,7 @@ venv
 .env
 outputs
 outputs/enhanced_dataset.csv
-
+risk_eval/result
+repomix-output.txt
 # pycache files all over the project
 **/__pycache__/**
