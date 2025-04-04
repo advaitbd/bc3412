@@ -8,7 +8,7 @@ The system ingests company data from Excel sheets and PDF reports, uses Google's
 
 **Contributors:**
 
-| DP | Username | Name |
+|  | Username | Name |
 |:--:|:--------:|:-----|
 | <img src="https://github.com/advaitbd.png" width="40" height="40"> | [advaitbd](https://github.com/advaitbd) | Advait Bharat Deshpande |
 | <img src="https://github.com/heypeiyee.png" width="40" height="40"> | [heypeiyee](https://github.com/heypeiyee) | Lee Pei Yee |
