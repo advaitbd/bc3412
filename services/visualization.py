@@ -1,4 +1,4 @@
-# bc3412/services/visualization.py
+# services/visualization.py
 import os
 import json
 import logging
@@ -21,146 +21,483 @@ def generate_pathway_visualization(company_name, json_data):
         vis_dir = os.path.join(DEFAULT_OUTPUT_DIR, "visualizations")
         Path(vis_dir).mkdir(parents=True, exist_ok=True)
 
-        # Process data into vis.js format
-        nodes = []
-        edges = []
-        node_id = 1
+        # Get risk data if available
+        risk_data = roadmap_data.get("risk_assessment", {})
+        climate_risk = risk_data.get("overall_climate_risk", "Unknown")
+        carbon_risk = risk_data.get("overall_carbon_price_risk", "Unknown")
+        tech_risk = risk_data.get("overall_technology_risk", "Unknown")
+        countries = risk_data.get("countries_evaluated", [])
 
-        # Add company as the root node
-        company_node = {
-            "id": node_id,
-            "label": company_name,
-            "type": "company",
-            "details": "Company Energy Transition Roadmap"
-        }
-        nodes.append(company_node)
-        company_node_id = node_id
-        node_id += 1
+        # Get External Factors data
+        external_factors = roadmap_data.get("external_factors", {})
 
-        # Process each timeframe
-        for timeframe in roadmap_data.get("timeframes", []):
-            # Add timeframe node
-            timeframe_node = {
-                "id": node_id,
-                "label": timeframe.get("name", "Unknown Timeframe"),
-                "type": "timeframe",
-                "details": ""
-            }
-            nodes.append(timeframe_node)
+        # Get Internal Factors data
+        internal_factors = roadmap_data.get("internal_factors", {})
 
-            # Add edge from company to timeframe
-            edges.append({
-                "from": company_node_id,
-                "to": node_id,
-                "label": ""
-            })
+        # Get Factor Rankings
+        factor_rankings = roadmap_data.get("factor_rankings", [])
 
-            timeframe_node_id = node_id
-            node_id += 1
+        # Generate External Factors HTML
+        external_factors_html = ""
+        if external_factors:
+            external_factors_html = """
+            <div class="factors-section">
+                <h2>External Factors</h2>
+            """
 
-            # Process actions for this timeframe
-            for action in timeframe.get("actions", []):
-                # Add action node
-                action_node = {
-                    "id": node_id,
-                    "label": action.get("category", "Unknown Action"),
-                    "type": "action",
-                    "details": ""
-                }
-                nodes.append(action_node)
+            # Climate Risk
+            climate_data = external_factors.get("climate_risk", {})
+            if climate_data:
+                climate_score = climate_data.get("score", "Unknown")
+                external_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Climate Risk</h3>
+                    <div class="risk-indicator risk-{climate_score.lower()}">{climate_score}</div>
+                    <div class="factor-details">
+                        <p><strong>Interpretation:</strong> {climate_data.get("interpretation", "Not provided")}</p>
+                        <p><strong>Impact:</strong> {climate_data.get("impact", "Not provided")}</p>
+                    </div>
+                </div>
+                """
 
-                # Add edge from timeframe to action
-                edges.append({
-                    "from": timeframe_node_id,
-                    "to": node_id,
-                    "label": ""
-                })
+            # Carbon Price Risk
+            carbon_data = external_factors.get("carbon_price_risk", {})
+            if carbon_data:
+                carbon_score = carbon_data.get("score", "Unknown")
+                external_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Carbon Price Risk</h3>
+                    <div class="risk-indicator risk-{carbon_score.lower()}">{carbon_score}</div>
+                    <div class="factor-details">
+                        <p><strong>Interpretation:</strong> {carbon_data.get("interpretation", "Not provided")}</p>
+                        <p><strong>Impact:</strong> {carbon_data.get("impact", "Not provided")}</p>
+                    </div>
+                </div>
+                """
 
-                action_node_id = node_id
-                node_id += 1
+            # Technology Risk
+            tech_data = external_factors.get("technology_risk", {})
+            if tech_data:
+                tech_score = tech_data.get("score", "Unknown")
+                external_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Technology Risk</h3>
+                    <div class="risk-indicator risk-{tech_score.lower()}">{tech_score}</div>
+                    <div class="factor-details">
+                        <p><strong>Interpretation:</strong> {tech_data.get("interpretation", "Not provided")}</p>
+                        <p><strong>Impact:</strong> {tech_data.get("impact", "Not provided")}</p>
+                    </div>
+                </div>
+                """
 
-                # Process recommendations for this action
-                for rec in action.get("recommendations", []):
-                    # Add recommendation node
-                    rec_node = {
-                        "id": node_id,
-                        "label": rec.get("title", "Unknown Recommendation"),
-                        "type": "recommendation",
-                        "details": rec.get("details", ""),
-                        "reference": rec.get("reference", "No reference provided"),
-                        "justification": rec.get("justification", {})
-                    }
-                    nodes.append(rec_node)
+            # Policy Environment
+            policy_env = external_factors.get("policy_environment", "No policy analysis provided")
+            external_factors_html += f"""
+            <div class="factor-card">
+                <h3>Policy Environment</h3>
+                <div class="factor-details">
+                    <p>{policy_env}</p>
+                </div>
+            </div>
+            """
 
-                    # Add edge from action to recommendation
-                    edges.append({
-                        "from": action_node_id,
-                        "to": node_id,
-                        "label": ""
-                    })
+            external_factors_html += "</div>"
 
-                    node_id += 1
+        # Generate Internal Factors HTML
+        internal_factors_html = ""
+        if internal_factors:
+            internal_factors_html = """
+            <div class="factors-section">
+                <h2>Internal Factors</h2>
+            """
 
-        # Create HTML file with vis.js visualization
+            # Operational Feasibility
+            op_data = internal_factors.get("operational_feasibility", {})
+            if op_data:
+                op_assessment = op_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Operational Feasibility</h3>
+                    <div class="assessment-indicator assessment-{op_assessment.lower()}">{op_assessment}</div>
+                    <div class="factor-details">
+                        <p>{op_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Financial Viability
+            fin_data = internal_factors.get("financial_viability", {})
+            if fin_data:
+                fin_assessment = fin_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Financial Viability</h3>
+                    <div class="assessment-indicator assessment-{fin_assessment.lower()}">{fin_assessment}</div>
+                    <div class="factor-details">
+                        <p>{fin_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Existing Capabilities
+            cap_data = internal_factors.get("existing_capabilities", {})
+            if cap_data:
+                cap_assessment = cap_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Existing Capabilities</h3>
+                    <div class="assessment-indicator assessment-{cap_assessment.lower()}">{cap_assessment}</div>
+                    <div class="factor-details">
+                        <p>{cap_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            # Organizational Readiness
+            org_data = internal_factors.get("organizational_readiness", {})
+            if org_data:
+                org_assessment = org_data.get("assessment", "Unknown")
+                internal_factors_html += f"""
+                <div class="factor-card">
+                    <h3>Organizational Readiness</h3>
+                    <div class="assessment-indicator assessment-{org_assessment.lower()}">{org_assessment}</div>
+                    <div class="factor-details">
+                        <p>{org_data.get("details", "No details provided")}</p>
+                    </div>
+                </div>
+                """
+
+            internal_factors_html += "</div>"
+
+        # Generate Factor Rankings HTML
+        factor_rankings_html = ""
+        if factor_rankings:
+            factor_rankings_html = """
+            <div class="factors-section">
+                <h2>Factor Rankings</h2>
+                <table class="rankings-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Factor</th>
+                            <th>Importance</th>
+                            <th>Justification</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            """
+
+            for factor in factor_rankings:
+                rank = factor.get("rank", "")
+                factor_name = factor.get("factor", "Unknown")
+                importance = factor.get("importance", "Unknown")
+                justification = factor.get("justification", "No justification provided")
+
+                factor_rankings_html += f"""
+                <tr>
+                    <td>{rank}</td>
+                    <td>{factor_name}</td>
+                    <td class="importance-{importance.lower()}">{importance}</td>
+                    <td>{justification}</td>
+                </tr>
+                """
+
+            factor_rankings_html += """
+                    </tbody>
+                </table>
+            </div>
+            """
+
+        # Create HTML file with visualization
         html_file = os.path.join(vis_dir, f"{company_name}_pathway.html")
 
-        # Generate HTML with embedded vis.js
+        # Generate timeframes and their actions for the HTML structure
+        timeframes_html = ""
+        for timeframe in roadmap_data.get("timeframes", []):
+            timeframe_name = timeframe.get("name", "Unknown Timeframe")
+            timeframe_id = timeframe_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
+
+            actions_html = ""
+            for action in timeframe.get("actions", []):
+                action_category = action.get("category", "Unknown Action")
+                action_id = f"{timeframe_id}-{action_category.lower().replace(' ', '-')}"
+
+                recommendations_html = ""
+                for rec in action.get("recommendations", []):
+                    rec_title = rec.get("title", "Unknown Recommendation")
+                    rec_details = rec.get("details", "")
+                    rec_reference = rec.get("reference", "No reference provided")
+
+                    # Process justifications if available
+                    justification_html = ""
+                    if rec.get("justification"):
+                        just = rec.get("justification", {})
+                        justification_items = []
+
+                        if just.get("peer_alignment"):
+                            justification_items.append(f"<div class='justification-item'><strong>Peer Alignment:</strong> {just.get('peer_alignment')}</div>")
+                        if just.get("financial_viability"):
+                            justification_items.append(f"<div class='justification-item'><strong>Financial Viability:</strong> {just.get('financial_viability')}</div>")
+                        if just.get("operational_feasibility"):
+                            justification_items.append(f"<div class='justification-item'><strong>Operational Feasibility:</strong> {just.get('operational_feasibility')}</div>")
+                        if just.get("target_alignment"):
+                            justification_items.append(f"<div class='justification-item'><strong>Target Alignment:</strong> {just.get('target_alignment')}</div>")
+                        if just.get("risk_mitigation"):
+                            justification_items.append(f"<div class='justification-item'><strong>Risk Mitigation:</strong> {just.get('risk_mitigation')}</div>")
+
+                        if justification_items:
+                            justification_html = f"""
+                            <div class="justification">
+                                <h4>Recommendation Justification</h4>
+                                {"".join(justification_items)}
+                            </div>
+                            """
+
+                    recommendations_html += f"""
+                    <div class="recommendation">
+                        <h4>{rec_title}</h4>
+                        <div class="recommendation-content">
+                            <p>{rec_details}</p>
+                            <div class="reference">
+                                <strong>Reference:</strong> {rec_reference}
+                            </div>
+                            {justification_html}
+                        </div>
+                    </div>
+                    """
+
+                actions_html += f"""
+                <div class="action">
+                    <h3 class="action-header" onclick="toggleActionContent('{action_id}')">{action_category}</h3>
+                    <div class="action-content" id="{action_id}">
+                        {recommendations_html}
+                    </div>
+                </div>
+                """
+
+            timeframes_html += f"""
+            <div class="timeframe">
+                <h2 class="timeframe-header" onclick="toggleTimeframeContent('{timeframe_id}')">{timeframe_name}</h2>
+                <div class="timeframe-content" id="{timeframe_id}">
+                    {actions_html}
+                </div>
+            </div>
+            """
+
+        # Navigation items for sidebar
+        nav_items = []
+        for tf in roadmap_data.get("timeframes", []):
+            tf_name = tf.get("name", "Unknown")
+            tf_id = tf_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
+            nav_items.append(f'<li><a href="#" onclick="toggleTimeframeContent(\'{tf_id}\'); return false;">{tf_name}</a></li>')
+        nav_html = "".join(nav_items)
+
+        # Generate HTML content
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <title>Energy Transition Pathway for {company_name}</title>
-            <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-            <style type="text/css">
+            <style>
                 body, html {{
                     margin: 0;
                     padding: 0;
                     font-family: Arial, sans-serif;
-                    height: 100%;
-                    width: 100%;
+                    line-height: 1.6;
+                    color: #333;
+                    background-color: #f8f9fa;
                 }}
                 .container {{
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    flex-direction: column;
-                }}
-                #header {{
+                    max-width: 1200px;
+                    margin: 0 auto;
                     padding: 20px;
+                }}
+                header {{
                     background-color: #3c4b64;
                     color: white;
-                }}
-                .content-area {{
-                    display: flex;
-                    flex: 1;
-                    overflow: hidden;
-                }}
-                #pathway-visualization {{
-                    flex: 2;
-                    height: 100%;
-                }}
-                #details-panel {{
-                    flex: 1;
-                    padding: 20px;
-                    background-color: #f5f5f5;
-                    overflow: auto;
-                    border-left: 1px solid #ddd;
-                }}
-                .node-title {{
-                    background-color: #4b77be;
-                    color: white;
+                    padding: 30px;
                     border-radius: 5px;
-                    padding: 10px;
-                    font-weight: bold;
-                    margin-bottom: 15px;
+                    margin-bottom: 30px;
                 }}
-                .node-details {{
-                    background-color: #fff;
+                h1 {{
+                    margin: 0;
+                    font-size: 28px;
+                }}
+                .factors-section {{
+                    background-color: white;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    padding: 20px;
+                    margin-bottom: 20px;
+                }}
+                .factor-card {{
+                    border: 1px solid #e0e0e0;
                     border-radius: 5px;
                     padding: 15px;
-                    margin-top: 10px;
+                    margin-bottom: 15px;
+                    background-color: #ffffff;
+                }}
+                .factor-card h3 {{
+                    margin-top: 0;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 10px;
+                }}
+                .risk-indicator, .assessment-indicator {{
+                    display: inline-block;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                }}
+                .risk-high, .assessment-low {{
+                    background-color: #f8d7da;
+                    color: #721c24;
+                    border: 1px solid #f5c6cb;
+                }}
+                .risk-medium, .assessment-medium {{
+                    background-color: #fff3cd;
+                    color: #856404;
+                    border: 1px solid #ffeeba;
+                }}
+                .risk-low, .assessment-high, .assessment-strong {{
+                    background-color: #d4edda;
+                    color: #155724;
+                    border: 1px solid #c3e6cb;
+                }}
+                .assessment-moderate {{
+                    background-color: #fff3cd;
+                    color: #856404;
+                    border: 1px solid #ffeeba;
+                }}
+                .assessment-weak {{
+                    background-color: #f8d7da;
+                    color: #721c24;
+                    border: 1px solid #f5c6cb;
+                }}
+                .risk-unknown, .assessment-unknown {{
+                    background-color: #e2e3e5;
+                    color: #383d41;
+                    border: 1px solid #d6d8db;
+                }}
+                .rankings-table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                }}
+                .rankings-table th, .rankings-table td {{
+                    padding: 10px;
                     border: 1px solid #ddd;
+                    text-align: left;
+                }}
+                .rankings-table th {{
+                    background-color: #f2f2f2;
+                }}
+                .importance-critical {{
+                    color: #721c24;
+                    font-weight: bold;
+                }}
+                .importance-high {{
+                    color: #e74c3c;
+                    font-weight: bold;
+                }}
+                .importance-medium {{
+                    color: #f39c12;
+                }}
+                .importance-low {{
+                    color: #27ae60;
+                }}
+                .pathway-container {{
+                    display: flex;
+                    gap: 20px;
+                    align-items: flex-start;
+                }}
+                .pathway {{
+                    flex: 1;
+                    background-color: white;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    padding: 20px;
+                }}
+                .timeframe {{
+                    margin-bottom: 20px;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 5px;
+                    overflow: hidden;
+                }}
+                .timeframe-header {{
+                    background-color: #FDF2E9;
+                    color: #e67e22;
+                    padding: 15px;
+                    margin: 0;
+                    cursor: pointer;
+                    border-bottom: 1px solid #e0e0e0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }}
+                .timeframe-header::after {{
+                    content: "▼";
+                    font-size: 12px;
+                }}
+                .timeframe-header.collapsed::after {{
+                    content: "▶";
+                }}
+                .timeframe-content {{
+                    padding: 0 15px;
+                }}
+                .action {{
+                    margin: 15px 0;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 5px;
+                    overflow: hidden;
+                }}
+                .action-header {{
+                    background-color: #E9F7EF;
+                    color: #27ae60;
+                    padding: 10px 15px;
+                    margin: 0;
+                    cursor: pointer;
+                    border-bottom: 1px solid #e0e0e0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }}
+                .action-header::after {{
+                    content: "▼";
+                    font-size: 12px;
+                }}
+                .action-header.collapsed::after {{
+                    content: "▶";
+                }}
+                .action-content {{
+                    padding: 0 15px;
+                }}
+                .recommendation {{
+                    margin: 15px 0;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 5px;
+                    overflow: hidden;
+                }}
+                .recommendation h4 {{
+                    background-color: #F4ECF7;
+                    color: #8e44ad;
+                    padding: 10px 15px;
+                    margin: 0;
+                    cursor: pointer;
+                    border-bottom: 1px solid #e0e0e0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }}
+                .recommendation h4::after {{
+                    content: "▼";
+                    font-size: 12px;
+                }}
+                .recommendation h4.collapsed::after {{
+                    content: "▶";
+                }}
+                .recommendation-content {{
+                    padding: 15px;
                 }}
                 .reference {{
                     font-size: 0.9em;
@@ -180,6 +517,13 @@ def generate_pathway_visualization(company_name, json_data):
                 .justification h4 {{
                     margin-top: 0;
                     color: #3c4b64;
+                    background-color: transparent;
+                    border: none;
+                    padding: 0;
+                    display: block;
+                }}
+                .justification h4::after {{
+                    content: none;
                 }}
                 .justification-item {{
                     margin: 5px 0;
@@ -187,177 +531,203 @@ def generate_pathway_visualization(company_name, json_data):
                     border-left: 2px solid #6c88a5;
                     background-color: #ffffff;
                 }}
+                .risk-assessment {{
+                    margin-top: 20px;
+                    padding: 15px;
+                    background-color: #f8f9fa;
+                    border-radius: 5px;
+                    border: 1px solid #dee2e6;
+                }}
+                .risk-assessment h3 {{
+                    color: #000000;
+                }}
+                .risk-item {{
+                    display: inline-block;
+                    margin: 5px;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }}
+                .country-list {{
+                    margin-top: 10px;
+                    font-style: italic;
+                    color: #495057;
+                    background-color: #e9ecef;
+                    padding: 8px;
+                    border-radius: 4px;
+                    border: 1px solid #ced4da;
+                }}
+                .controls {{
+                    margin: 15px 0;
+                }}
+                .controls button {{
+                    background-color: #4b77be;
+                    color: white;
+                    border: none;
+                    padding: 8px 15px;
+                    margin-right: 10px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }}
+                .controls button:hover {{
+                    background-color: #3c639e;
+                }}
+                .sidebar {{
+                    width: 300px;
+                    background-color: white;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    padding: 20px;
+                    position: sticky;
+                    top: 20px;
+                }}
+                @media (max-width: 768px) {{
+                    .pathway-container {{
+                        flex-direction: column;
+                    }}
+                    .sidebar {{
+                        width: auto;
+                        position: static;
+                        margin-bottom: 20px;
+                    }}
+                }}
             </style>
         </head>
         <body>
             <div class="container">
-                <div id="header">
+                <header>
                     <h1>Energy Transition Pathway for {company_name}</h1>
                     <p>Interactive visualization of the recommended transition roadmap</p>
-                </div>
 
-                <div class="content-area">
-                    <div id="pathway-visualization"></div>
-                    <div id="details-panel">
-                        <h2>Pathway Details</h2>
-                        <p>Click on any node in the visualization to see details.</p>
-                        <div id="node-details"></div>
+                    <div class="risk-assessment">
+                        <h3>Risk Assessment</h3>
+                        <div class="risk-item risk-{climate_risk.lower()}">Climate Risk: {climate_risk}</div>
+                        <div class="risk-item risk-{carbon_risk.lower()}">Carbon Price Risk: {carbon_risk}</div>
+                        <div class="risk-item risk-{tech_risk.lower()}">Technology Risk: {tech_risk}</div>
+                        <div class="country-list">
+                            <strong>Countries assessed:</strong> {', '.join(countries) if countries else 'None specified'}
+                        </div>
+                    </div>
+
+                    <div class="controls">
+                        <button onclick="expandAll()">Expand All</button>
+                        <button onclick="collapseAll()">Collapse All</button>
+                    </div>
+                </header>
+
+                {external_factors_html}
+                {internal_factors_html}
+                {factor_rankings_html}
+
+                <div class="pathway-container">
+                    <div class="pathway">
+                        <h2>Energy Transition Roadmap</h2>
+                        {timeframes_html}
+                    </div>
+
+                    <div class="sidebar">
+                        <h2>Navigation</h2>
+                        <p>Click on any section header to expand or collapse it:</p>
+                        <ul>
+                            {nav_html}
+                        </ul>
+
+                        <div class="risk-summary">
+                            <h3>Risk Summary</h3>
+                            <p><strong>Climate:</strong> <span class="risk-{climate_risk.lower()}">{climate_risk}</span></p>
+                            <p><strong>Carbon Price:</strong> <span class="risk-{carbon_risk.lower()}">{carbon_risk}</span></p>
+                            <p><strong>Technology:</strong> <span class="risk-{tech_risk.lower()}">{tech_risk}</span></p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <script type="text/javascript">
-                // Visualization data
-                const nodes = new vis.DataSet({json.dumps(nodes)});
-                const edges = new vis.DataSet({json.dumps(edges)});
+            <script>
+                // Make all content visible initially
+                document.addEventListener('DOMContentLoaded', function() {{
+                    const allTimeframes = document.querySelectorAll('.timeframe-content');
+                    const allActions = document.querySelectorAll('.action-content');
 
-                // Create network
-                const container = document.getElementById('pathway-visualization');
-                const data = {{
-                    nodes: nodes,
-                    edges: edges
-                }};
+                    // Start with everything collapsed
+                    collapseAll();
 
-                // Configure visualization options
-                const options = {{
-                    nodes: {{
-                        shape: 'box',
-                        margin: 10,
-                        widthConstraint: {{
-                            maximum: 200
-                        }},
-                        font: {{
-                            size: 14
-                        }},
-                        color: {{
-                            border: '#2B7CE9',
-                            background: '#D2E5FF'
-                        }}
-                    }},
-                    edges: {{
-                        arrows: {{
-                            to: {{ enabled: true, scaleFactor: 1 }}
-                        }},
-                        smooth: true
-                    }},
-                    layout: {{
-                        hierarchical: {{
-                            direction: 'LR',
-                            sortMethod: 'directed',
-                            levelSeparation: 200,
-                            nodeSpacing: 150
-                        }}
-                    }},
-                    physics: false,
-                    interaction: {{
-                        hover: true,
-                        tooltipDelay: 200
-                    }}
-                }};
-
-                // Apply different colors based on node type
-                nodes.forEach(node => {{
-                    if (node.type === 'company') {{
-                        node.color = {{background: '#E7F5FE', border: '#3498db'}};
-                    }} else if (node.type === 'timeframe') {{
-                        node.color = {{background: '#FDF2E9', border: '#e67e22'}};
-                    }} else if (node.type === 'action') {{
-                        node.color = {{background: '#E9F7EF', border: '#27ae60'}};
-                    }} else if (node.type === 'recommendation') {{
-                        node.color = {{background: '#F4ECF7', border: '#8e44ad'}};
+                    // But open the first timeframe
+                    if (allTimeframes.length > 0) {{
+                        const firstTimeframe = allTimeframes[0];
+                        firstTimeframe.style.display = 'block';
+                        firstTimeframe.previousElementSibling.classList.remove('collapsed');
                     }}
                 }});
 
-                const network = new vis.Network(container, data, options);
+                function toggleTimeframeContent(timeframeId) {{
+                    const content = document.getElementById(timeframeId);
+                    const header = content.previousElementSibling;
 
-                // Handle node selection
-                network.on("click", function(params) {{
-                    if (params.nodes.length > 0) {{
-                        const nodeId = params.nodes[0];
-                        const node = nodes.get(nodeId);
-
-                        const detailsPanel = document.getElementById('node-details');
-
-                        let content = `<div class="node-title">${{node.label}}</div>`;
-
-                        if (node.type === 'recommendation') {{
-                            content += `
-                                <div class="node-details">
-                                    <p>${{node.details}}</p>
-                                    <div class="reference">
-                                        <strong>Reference:</strong><br>
-                                        ${{node.reference}}
-                                    </div>
-                                </div>
-                            `;
-
-                            // Display justification if available
-                            if (node.justification) {{
-                                content += `
-                                    <div class="justification">
-                                        <h4>Recommendation Justification</h4>
-                                `;
-
-                                // Check each justification element
-                                if (node.justification.peer_alignment) {{
-                                    content += `
-                                        <div class="justification-item">
-                                            <strong>Peer Alignment:</strong> ${{node.justification.peer_alignment}}
-                                        </div>
-                                    `;
-                                }}
-
-                                if (node.justification.financial_viability) {{
-                                    content += `
-                                        <div class="justification-item">
-                                            <strong>Financial Viability:</strong> ${{node.justification.financial_viability}}
-                                        </div>
-                                    `;
-                                }}
-
-                                if (node.justification.operational_feasibility) {{
-                                    content += `
-                                        <div class="justification-item">
-                                            <strong>Operational Feasibility:</strong> ${{node.justification.operational_feasibility}}
-                                        </div>
-                                    `;
-                                }}
-
-                                if (node.justification.target_alignment) {{
-                                    content += `
-                                        <div class="justification-item">
-                                            <strong>Target Alignment:</strong> ${{node.justification.target_alignment}}
-                                        </div>
-                                    `;
-                                }}
-
-                                content += `</div>`;
-                            }}
-                        }} else if (node.type === 'company') {{
-                            content += `
-                                <div class="node-details">
-                                    <p>This visualization shows the recommended energy transition roadmap for ${company_name}.</p>
-                                    <p>Click on any timeframe, action category, or specific recommendation to see more details.</p>
-                                </div>
-                            `;
-                        }} else if (node.type === 'timeframe') {{
-                            content += `
-                                <div class="node-details">
-                                    <p>This timeframe represents actions to be taken during: <strong>${{node.label}}</strong></p>
-                                    <p>Click on action categories within this timeframe to explore specific recommendations.</p>
-                                </div>
-                            `;
-                        }} else if (node.type === 'action') {{
-                            content += `
-                                <div class="node-details">
-                                    <p>Action category: <strong>${{node.label}}</strong></p>
-                                    <p>Click on specific recommendations within this category to see implementation details and references.</p>
-                                </div>
-                            `;
-                        }}
-
-                        detailsPanel.innerHTML = content;
+                    if (content.style.display === 'none' || content.style.display === '') {{
+                        content.style.display = 'block';
+                        header.classList.remove('collapsed');
+                    }} else {{
+                        content.style.display = 'none';
+                        header.classList.add('collapsed');
                     }}
+                }}
+
+                function toggleActionContent(actionId) {{
+                    const content = document.getElementById(actionId);
+                    const header = content.previousElementSibling;
+
+                    if (content.style.display === 'none' || content.style.display === '') {{
+                        content.style.display = 'block';
+                        header.classList.remove('collapsed');
+                    }} else {{
+                        content.style.display = 'none';
+                        header.classList.add('collapsed');
+                    }}
+                }}
+
+                function toggleRecommendationContent(element) {{
+                    const content = element.nextElementSibling;
+
+                    if (content.style.display === 'none' || content.style.display === '') {{
+                        content.style.display = 'block';
+                        element.classList.remove('collapsed');
+                    }} else {{
+                        content.style.display = 'none';
+                        element.classList.add('collapsed');
+                    }}
+                }}
+
+                function expandAll() {{
+                    const allTimeframes = document.querySelectorAll('.timeframe-content');
+                    const allActions = document.querySelectorAll('.action-content');
+                    const allHeaders = document.querySelectorAll('.timeframe-header, .action-header');
+
+                    allTimeframes.forEach(function(tf) {{ tf.style.display = 'block'; }});
+                    allActions.forEach(function(action) {{ action.style.display = 'block'; }});
+                    allHeaders.forEach(function(header) {{ header.classList.remove('collapsed'); }});
+                }}
+
+                function collapseAll() {{
+                    const allTimeframes = document.querySelectorAll('.timeframe-content');
+                    const allActions = document.querySelectorAll('.action-content');
+                    const allHeaders = document.querySelectorAll('.timeframe-header, .action-header');
+
+                    allTimeframes.forEach(function(tf) {{ tf.style.display = 'none'; }});
+                    allActions.forEach(function(action) {{ action.style.display = 'none'; }});
+                    allHeaders.forEach(function(header) {{ header.classList.add('collapsed'); }});
+                }}
+
+                // Add click listeners to recommendation headers
+                document.addEventListener('DOMContentLoaded', function() {{
+                    const recommendationHeaders = document.querySelectorAll('.recommendation h4');
+                    recommendationHeaders.forEach(function(header) {{
+                        header.addEventListener('click', function() {{
+                            toggleRecommendationContent(this);
+                        }});
+                        // Start collapsed
+                        header.classList.add('collapsed');
+                        header.nextElementSibling.style.display = 'none';
+                    }});
                 }});
             </script>
         </body>
@@ -367,7 +737,7 @@ def generate_pathway_visualization(company_name, json_data):
         with open(html_file, 'w', encoding='utf-8') as f:
             f.write(html_content)
 
-        logging.info(f"Pathway visualization saved to: {html_file}")
+        logging.info(f"Enhanced HTML pathway visualization saved to: {html_file}")
 
         return html_file
 

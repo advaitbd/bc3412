@@ -1,0 +1,12 @@
+/* frontend/src/index.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: Add any custom base styles or component overrides below */
+/* For example:
+  body {
+    @apply font-sans; // Apply a default font using Tailwind
+  }
+*/

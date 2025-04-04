@@ -31,7 +31,7 @@ def get_gemini_response(prompt, client, model):
                 parts=[types.Part.from_text(text=prompt)]
             )
         ]
-        config = types.GenerateContentConfig(response_mime_type="application/json")
+        config = types.GenerateContentConfig(temperature=0,response_mime_type="application/json")
         response_text = ""
         for chunk in client.models.generate_content_stream(
             model=model,
