@@ -1,52 +1,67 @@
-# Energy Transition Data Pipeline MVP
+# Energy Transition Pathfinder
 
 ## Overview
 
-This project implements a data pipeline MVP (Minimum Viable Product) designed to analyze corporate sustainability reports (specifically PDFs) for energy companies. It extracts key information using Google's Gemini AI model, integrates it with existing company data, classifies transition actions, and generates tailored energy transition recommendations presented as an HTML roadmap.
+The Energy Transition Pathfinder is a comprehensive tool designed to analyze corporate sustainability reports, assess transition risks, and generate data-driven, AI-powered energy transition roadmaps for companies, primarily in the energy sector. It combines backend data processing and risk analysis with a web-based frontend for user interaction, company management, dashboard visualization, and pathway exploration.
+
+The system ingests company data from Excel sheets and PDF reports, uses Google's Gemini AI to extract key transition-related information, integrates this with quantitative risk assessments (Climate, Carbon Price, Technology), and ultimately generates tailored, interactive HTML roadmaps outlining strategic recommendations across different timeframes.
 
 ## Features
 
-*   **PDF Data Extraction:** Extracts relevant text sections (Executive Summary, Strategic Priorities, Financial Commitments, Risks, Milestones) from PDF reports.
-*   **Gemini AI Integration:** Leverages the Gemini API for data extraction and generating structured recommendations.
-*   **Data Integration:** Combines extracted PDF data with initial company data from an Excel sheet.
-*   **Action Classification:** Categorizes company actions based on keywords found in the extracted text.
-*   **Recommendation Generation:** Creates textual summaries and structured JSON roadmaps for energy transition strategies, tailored to each company.
-*   **HTML Roadmap Visualization:** Generates user-friendly HTML files visualizing the recommended transition pathway for each company.
-*   **Caching:** Saves the enhanced dataset to avoid reprocessing PDFs on subsequent runs unless forced.
+*   **PDF Data Extraction:** Extracts strategic priorities, financial commitments, risks, targets, and actions from PDF reports using AI.
+*   **AI Integration (Google Gemini):** Leverages Gemini for intelligent data extraction and generation of structured, context-aware recommendations.
+*   **Quantitative Risk Assessment:** Integrates custom models to assess company exposure to climate, carbon pricing, and technology transition risks based on operational geography.
+*   **Data Integration & Enhancement:** Merges baseline data with AI-extracted insights and risk scores into an enhanced dataset (`enhanced_dataset.csv`).
+*   **Recommendation Engine:** Generates detailed, time-bound energy transition strategies considering company specifics and risk profiles.
+*   **Interactive HTML Visualization:** Creates user-friendly HTML roadmaps visualizing the recommended transition pathway, including risk factors and justifications.
+*   **Web Backend (Flask API):** Provides endpoints to manage companies, upload reports, trigger processing, retrieve dashboard data, and generate/serve pathway visualizations.
+*   **Web Frontend (React UI):** Offers a dashboard overview, company report management interface (upload/process status), and an interactive viewer for the generated HTML pathways.
+*   **Caching:** Saves the enhanced dataset to optimize subsequent operations.
+
+## Technology Stack
+
+*   **Backend:** Python, Flask, Pandas, PyMuPDF (fitz), google-generativeai, Statsmodels
+*   **Frontend:** React, TypeScript, Vite, Tailwind CSS, Chart.js, Axios
+*   **AI Model:** Google Gemini
+*   **Data Storage:** CSV (for enhanced dataset), File System (PDFs, HTML outputs)
+*   **Environment Management:** python-dotenv, venv, npm
 
 ## Project Structure
-
 ```
 .
-├── .env                # Stores API keys (created from .env.sample)
-├── .env.sample         # Sample environment file template
-├── .gitignore          # Specifies intentionally untracked files
-├── data/
-│   ├── Pathfinder Data.xlsx # Initial company data
-│   └── pdfs/
-│       └── [CompanyName].pdf # Input PDF reports (e.g., BP.pdf)
-├── risk_eval/          # Risk Evaluation Models
-    ├── Data            # contain the datasets used for risk evaluations
-        ├── carbon_pricing_filtered.csv
-        ├── temprisedata2.csv
-        ├── trade_tech_filtered.csv
-
-    ├── pages           # tabs for UI
-        ├── Carbon_Visualisation
-        ├── Climate_Forecast
-        └── Technology_Forecast
-    ├── results         # store results
-    └── Carbon Forecast.py   # main file to run the streamlit ui
-├── main.py             # Main script for the pipeline execution
-├── outputs/
-│   ├── enhanced_dataset.csv # Output CSV with integrated and classified data
-│   └── [CompanyName].html   # Generated HTML recommendation roadmap
-│   └── [CompanyName]_raw_fallback.html # Raw roadmap output if JSON parsing fails
-├── requirements.txt    # Python dependencies
-└── venv/               # Python virtual environment (created during setup)
+├── analysis/ # Data integration, parsing, recommendation logic
+├── config/ # Settings, API prompts
+├── data/ # Input data loaders, savers, source Excel
+├── frontend/ # React frontend application source code
+│ ├── public/
+│ ├── src/
+│ ├── .env.development # Frontend environment config
+│ └── package.json # Frontend dependencies
+├── risk_eval/ # Risk evaluation models, data, and scripts
+│ ├── Data/ # Datasets for risk models
+│ └── result/ # Output from risk assessments
+├── services/ # Modules for external services (Gemini, Visualization, Extraction)
+├── utils/ # Utility functions (file handling, logging)
+├── .env # Backend environment variables (API Keys) - KEEP PRIVATE
+├── .env.sample # Sample backend environment file
+├── .gitignore # Git ignore configuration
+├── backend_api.py # Flask backend application
+├── main.py # Original CLI script for pipeline execution (optional use)
+├── requirements.txt # Python dependencies for backend
+└── README.md
 ```
 
+*(Note: PDF reports are typically placed in `annual_reports` or uploaded via the API to `annual_reports_uploads`)*
+
 ## Setup
+
+**Prerequisites:**
+
+*   Python 3.8+ and Pip
+*   Node.js and npm (or yarn)
+*   Git
+
+**Steps:**
 
 1.  **Clone the Repository:**
     ```bash
@@ -54,85 +69,164 @@ This project implements a data pipeline MVP (Minimum Viable Product) designed to
     cd <repository_directory>
     ```
 
-2.  **Create and Activate Virtual Environment:**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # On Windows use `venv\\Scripts\\activate`
-    ```
-
-3.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Configure Environment Variables:**
-    *   Copy the sample environment file:
+2.  **Backend Setup:**
+    *   Create and activate a Python virtual environment:
         ```bash
-        cp .env.sample .env
+        python3 -m venv venv
+        source venv/bin/activate  # On Windows: venv\Scripts\activate
         ```
-    *   Edit the `.env` file and add your Google API Key:
+    *   Install Python dependencies:
+        ```bash
+        pip install -r requirements.txt
         ```
-        GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY_HERE
+    *   Configure backend environment variables:
+        *   Copy the sample environment file: `cp .env.sample .env`
+        *   Edit `.env` and add your Google Gemini API Key:
+            ```env
+            GEMINI_API_KEY=YOUR_GOOGLE_API_KEY_HERE
+            ```
+        *   **Important:** Ensure `.env` is in your `.gitignore`.
+    *   Prepare Input Data:
+        *   Place the initial company data Excel file at `data/Pathfinder Data.xlsx` (or update `config/settings.py` if using a different path/name). Ensure it has a `Name` column.
+        *   Ensure the PDF reports exist either in the directory specified by `DEFAULT_PDF_DIR` in `config/settings.py` (e.g., `annual_reports/`) OR be prepared to upload them via the frontend UI. PDF filenames (without extension) should ideally match the company `Name` in the Excel file for automatic association.
+
+3.  **Frontend Setup:**
+    *   Navigate to the frontend directory: `cd frontend`
+    *   Install Node.js dependencies:
+        ```bash
+        npm install
         ```
-    *   *Note:* Ensure the `.env` file is listed in your `.gitignore` to prevent accidentally committing your API key.
+    *   Configure frontend environment variables:
+        *   Create a `.env.development` file in the `frontend` directory: `cp .env.development.sample .env.development` (if a sample exists) or create it manually.
+        *   Edit `frontend/.env.development` and set the URL for your running backend API:
+            ```env
+            VITE_API_URL=http://localhost:5001
+            ```
+            (Adjust the port if your backend runs elsewhere).
+    *   Navigate back to the project root: `cd ..`
 
-5.  **Prepare Input Data:**
-    *   Place the initial company data Excel file at `data/Pathfinder Data.xlsx`.
-    *   Place the corresponding company PDF reports inside the `data/pdfs/` directory. The PDF filenames should match the company names listed in the `Name` column of the Excel file (e.g., if the Excel has "BP", the PDF should be named `BP.pdf`).
+## Running the Application
 
-## Usage
+You need to run both the backend API and the frontend UI.
 
-Run the main pipeline script from the project's root directory:
+1.  **Start the Backend API:**
+    *   Make sure your Python virtual environment is activated.
+    *   From the project root directory, run:
+        ```bash
+        python backend_api.py
+        ```
+    *   The API will typically start on `http://localhost:5001` (or the port specified by the `PORT` environment variable). Watch the console output for the exact address and any errors (like missing API keys).
 
-*   **Generate recommendations for ALL companies in the dataset:**
-    ```bash
-    python3 main.py
-    ```
-    This will process PDFs (if `outputs/enhanced_dataset.csv` doesn't exist), classify actions, save the enhanced dataset, and then generate recommendations and HTML roadmaps for every company found.
+2.  **Start the Frontend UI:**
+    *   Open a *new* terminal window/tab.
+    *   Navigate to the frontend directory: `cd frontend`
+    *   Run the development server:
+        ```bash
+        npm run dev
+        ```
+    *   The frontend will usually start on `http://localhost:5173` (Vite's default). Open this address in your web browser.
 
-*   **Generate recommendations for a SPECIFIC company:**
-    Use the `-c` or `--company` argument. Make sure the company name matches the entry in the `Name` column of the input Excel/CSV.
-    ```bash
-    python3 main.py -c "Exxon Mobil"
-    ```
+You should now be able to interact with the application through the web interface.
 
-*   **Force Reprocessing of PDFs:**
-    Use the `-f` or `--force-reprocess` flag to ignore any existing `enhanced_dataset.csv` and re-extract data from all PDFs.
-    ```bash
-    python3 main.py -f
-    ```
-    *(This will consume more API credits)*
+## Data Flow & Architecture
 
-*   **Enable Debug Logging:**
-    Use the `--debug` flag for more verbose logging output.
-    ```bash
-    python3 main.py --debug
-    ```
+```mermaid
+flowchart TD
+ subgraph subGraph0["Stage 1: Data Loading &amp; Enhancement"]
+    direction LR
+        C("Load Excel Data")
+        A[/"Excel Data (Pathfinder Data.xlsx)"/]
+        D("Extract Text from PDF")
+        B[/"PDF Reports (annual_reports/*.pdf)"/]
+        E{"Extract Data via Gemini"}
+        F("Integrate Data")
+        G[/"Enhanced Dataset (outputs/enhanced_dataset.csv)"/]
+  end
+ subgraph subGraph1["2: Risk Assessment"]
+    direction LR
+        I("Climate Risk Model")
+        H[/"Climate Data (temprisedata2.csv)"/]
+        K("Carbon Price Risk Model")
+        J[/"Carbon Pricing Data (carbon_pricing_filtered.csv)"/]
+        M("Technology Risk Model")
+        L[/"Tech Trade Data (trade_tech_filtered.csv)"/]
+        N{"Run Comprehensive Risk Assessment"}
+        O[/"Risk Assessment Results (JSON)"/]
+  end
+ subgraph subGraph2["3: Recommendation & Pathway Generation"]
+    direction LR
+        Q{"Generate Recommendations via Gemini"}
+        R("Generate HTML Pathway Visualization")
+        S[/"HTML Energy Pathway (outputs/visualizations/*.html)"/]
+  end
+    A --> C
+    B --> D
+    C -- Company Context --> E
+    D -- Report Text --> E
+    C -- Original Data --> F
+    E -- Extracted Data (JSON) --> F
+    F --> G
+    H --> I
+    J --> K
+    L --> M
+    G -- Get Countries of Operation --> N
+    I -- "Climate Sub-Assessment" --> N
+    K -- "Carbon Sub-Assessment" --> N
+    M -- "Technology Sub-Assessment" --> N
+    N --> O
+    G -- Enhanced Company Data --> Q
+    O -- Risk Context --> Q
+    Q -- Structured Roadmap (JSON) --> R
+    R --> S
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style E fill:#ffc,stroke:#f60,stroke-width:2px
+    style G fill:#ccf,stroke:#333,stroke-width:2px
+    style H fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style J fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style L fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style N fill:#ffc,stroke:#333,stroke-width:1px
+    style O fill:#ccf,stroke:#333,stroke-width:2px
+    style Q fill:#ffc,stroke:#f60,stroke-width:2px
+    style S fill:#cfc,stroke:#333,stroke-width:2px
+```
 
-## Input Data
+1.  **UI Interaction:** The user interacts with the React frontend.
+2.  **API Requests:** The frontend sends requests to the Flask backend API for actions like fetching company status, uploading PDFs, triggering processing, or requesting pathways.
+3.  **Backend Orchestration:**
+    *   The API loads baseline data (`.xlsx`) and checks for existing PDFs/enhanced data (`.csv`).
+    *   **Processing:** On request, it extracts text from the relevant PDF, calls the Gemini service for analysis/extraction, integrates the results with baseline data, and saves/updates the `enhanced_dataset.csv`.
+    *   **Pathway Generation:** On request, it loads enhanced data for the company, runs the risk assessment (`risk_evaluator.py`), calls the Gemini service with data + risk context to generate recommendations (JSON), uses the visualization service to create an HTML file, and returns the path to the file.
+4.  **Risk Evaluation:** The `risk_evaluator.py` module uses dedicated datasets to calculate climate, carbon price, and technology risks when requested by the recommendation process.
+5.  **Static File Serving:** The Flask backend serves the generated HTML pathway files from the `outputs/visualizations` directory via a `/static/` route.
+6.  **UI Display:** The frontend receives data (like dashboard info or pathway URLs) from the API and renders the appropriate components (tables, charts, iframes for pathways).
 
-*   **`data/Pathfinder Data.xlsx`:** An Excel spreadsheet containing initial metadata about the companies. Must include a 'Name' column that matches the PDF filenames in `data/pdfs/`.
-*   **`data/pdfs/[CompanyName].pdf`:** Annual or sustainability reports for each company, named according to the 'Name' column in the Excel file.
+## Input / Output
 
-## Output
+*   **Inputs:**
+    *   `data/Pathfinder Data.xlsx`: Initial company metadata.
+    *   PDF Reports: Placed in `DEFAULT_PDF_DIR` or uploaded via API.
+    *   Risk Datasets: Located in `risk_eval/Data/`.
+    *   `.env` file: `GEMINI_API_KEY`.
+    *   `frontend/.env.development`: `VITE_API_URL`.
+*   **Outputs:**
+    *   `outputs/enhanced_dataset.csv`: Integrated data including AI extractions.
+    *   `outputs/visualizations/*.html`: Generated interactive pathway roadmaps.
+    *   API JSON Responses: Data served to the frontend.
+    *   Logs: Console output detailing the process.
 
-*   **`outputs/enhanced_dataset.csv`:** A CSV file containing the original data merged with extracted information from PDFs and action classifications. This file is used as a cache to avoid re-processing PDFs.
-*   **`outputs/[CompanyName].html`:** An HTML file generated for each processed company, visualizing the structured energy transition roadmap recommended by the AI.
-*   **`outputs/[CompanyName]_raw_fallback.html`:** If the AI's roadmap output cannot be parsed correctly as JSON, this raw output file is generated instead.
+## Configuration
 
-## Dependencies
+*   **Backend API Key:** Set `GEMINI_API_KEY` in the `.env` file in the project root.
+*   **Frontend API URL:** Set `VITE_API_URL` in `frontend/.env.development`.
+*   **File Paths & Prompts:** Default paths (Excel, PDF dir, output dir), AI model name, and Gemini prompts are configured in `config/settings.py`.
+*   **Upload Folder:** Configured in `backend_api.py` (defaults to `annual_reports_uploads`).
 
-Key Python libraries used:
+**Contributors:**
 
-*   `pandas`
-*   `openpyxl`
-*   `PyMuPDF` (fitz)
-*   `google-generativeai`
-*   `python-dotenv`
-*   `numpy`
-*   `argparse`
-*   `streamlit`
-*   `matplotlib`
-*   `statsmodels`
-
-See `requirements.txt` for the full list.
+| Username | Name          |
+| :------- | :------------ |
+| `advaitbd`  | `Advait Bharat Deshpande` |
+| `heypeiyee` | `Lee Pei Yee` |
+| `joannecheng037` | `Cheng Jia En Joanne`               |
+| `cy12301` | `Wong Chin Yeow`               |

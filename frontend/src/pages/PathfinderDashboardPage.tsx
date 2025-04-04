@@ -153,11 +153,11 @@ const PathfinderDashboardPage: React.FC = () => {
               value={summaryStats.companiesOnTrack}
               icon={<CheckBadgeIcon className="h-8 w-8 text-green-500" />}
             />
-            <SummaryWidget
+            {/* <SummaryWidget
               title="Avg. Emission Reduction"
               value={summaryStats.avgReduction}
               icon={<ChartPieIcon className="h-8 w-8 text-purple-500" />}
-            />
+            /> */}
             <SummaryWidget
               title="Most Common Industry"
               value={summaryStats.mostCommonIndustry}
@@ -168,13 +168,13 @@ const PathfinderDashboardPage: React.FC = () => {
           </div>
 
           {/* Charts and Tables Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <TargetStatusChart data={dashboardData} />
-            {/* Add another chart here if needed, e.g., Industry Distribution */}
-            <div className="bg-white p-4 rounded-lg shadow h-96 flex items-center justify-center text-gray-400">
+          {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"> */}
+          {/* <TargetStatusChart data={dashboardData} /> */}
+          {/* Add another chart here if needed, e.g., Industry Distribution */}
+          {/* <div className="bg-white p-4 rounded-lg shadow h-96 flex items-center justify-center text-gray-400">
               Placeholder for another chart (e.g., Industry Breakdown)
-            </div>
-          </div>
+            </div> */}
+          {/* </div> */}
           {/* Targets Table */}
           <div>
             <TargetOverviewTable data={dashboardData} />

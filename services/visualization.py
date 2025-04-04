@@ -538,6 +538,9 @@ def generate_pathway_visualization(company_name, json_data):
                     border-radius: 5px;
                     border: 1px solid #dee2e6;
                 }}
+                .risk-assessment h3 {{
+                    color: #000000;
+                }}
                 .risk-item {{
                     display: inline-block;
                     margin: 5px;
