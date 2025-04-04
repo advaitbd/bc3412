@@ -178,17 +178,17 @@ flowchart TD
     O -- Risk Context --> Q
     Q -- Structured Roadmap (JSON) --> R
     R --> S
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style E fill:#ffc,stroke:#f60,stroke-width:2px
-    style G fill:#ccf,stroke:#333,stroke-width:2px
-    style H fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
-    style J fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
-    style L fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
-    style N fill:#ffc,stroke:#333,stroke-width:1px
-    style O fill:#ccf,stroke:#333,stroke-width:2px
-    style Q fill:#ffc,stroke:#f60,stroke-width:2px
-    style S fill:#cfc,stroke:#333,stroke-width:2px
+    style A fill:#f9f,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#f9f,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#ffc,stroke:#f60,stroke-width:2px,color:#000
+    style G fill:#ccf,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5,color:#000
+    style J fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5,color:#000
+    style L fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5,color:#000
+    style N fill:#ffc,stroke:#333,stroke-width:1px,color:#000
+    style O fill:#ccf,stroke:#333,stroke-width:2px,color:#000
+    style Q fill:#ffc,stroke:#f60,stroke-width:2px,color:#000
+    style S fill:#cfc,stroke:#333,stroke-width:2px,color:#000
 ```
 
 1.  **UI Interaction:** The user interacts with the React frontend.
