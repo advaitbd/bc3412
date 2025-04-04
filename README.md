@@ -6,6 +6,16 @@ The Energy Transition Pathfinder is a comprehensive tool designed to analyze cor
 
 The system ingests company data from Excel sheets and PDF reports, uses Google's Gemini AI to extract key transition-related information, integrates this with quantitative risk assessments (Climate, Carbon Price, Technology), and ultimately generates tailored, interactive HTML roadmaps outlining strategic recommendations across different timeframes.
 
+**Contributors:**
+
+| DP | Username | Name |
+|:--:|:--------:|:-----|
+| <img src="https://github.com/advaitbd.png" width="40" height="40"> | [advaitbd](https://github.com/advaitbd) | Advait Bharat Deshpande |
+| <img src="https://github.com/heypeiyee.png" width="40" height="40"> | [heypeiyee](https://github.com/heypeiyee) | Lee Pei Yee |
+| <img src="https://github.com/joannecheng037.png" width="40" height="40"> | [joannecheng037](https://github.com/joannecheng037) | Cheng Jia En Joanne |
+| <img src="https://github.com/cy12301.png" width="40" height="40"> | [cy12301](https://github.com/cy12301) | Wong Chin Yeow |
+
+
 ## Features
 
 *   **PDF Data Extraction:** Extracts strategic priorities, financial commitments, risks, targets, and actions from PDF reports using AI.
@@ -222,11 +232,3 @@ flowchart TD
 *   **File Paths & Prompts:** Default paths (Excel, PDF dir, output dir), AI model name, and Gemini prompts are configured in `config/settings.py`.
 *   **Upload Folder:** Configured in `backend_api.py` (defaults to `annual_reports_uploads`).
 
-**Contributors:**
-
-| Username | Name          |
-| :------- | :------------ |
-| `advaitbd`  | `Advait Bharat Deshpande` |
-| `heypeiyee` | `Lee Pei Yee` |
-| `joannecheng037` | `Cheng Jia En Joanne`               |
-| `cy12301` | `Wong Chin Yeow`               |
