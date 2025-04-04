@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv # To load .env for the API key
+from data.loaders import load_excel_data, extract_text_from_pdf
 
 # --- Load Environment Variables ---
 load_dotenv() # Load .env file if it exists
@@ -148,20 +149,31 @@ def run_processing_for_company(company_name):
         return False, f"PDF report for '{company_name}' not found."
 
     try:
-        # 1. Extract Text
+        # 1. Load original company data
+        original_df = load_excel_data(EXCEL_PATH)
+        original_df['Name'] = original_df['Name'].astype(str).str.strip()
+
+        # Find the specific company data
+        company_data = original_df[original_df['Name'] == company_name]
+        if company_data.empty:
+            logger.error(f"Company '{company_name}' not found in original Excel.")
+            return False, f"Company '{company_name}' not found in source data."
+
+        # Get the company row as a Series
+        company_row = company_data.iloc[0]
+
+        # 2. Extract Text
         logger.info(f"Extracting text from {pdf_path}...")
-        report_text = extract_text_from_pdf(pdf_path) # Uses your loader
+        report_text = extract_text_from_pdf(pdf_path)
         if report_text is None:
             logger.error(f"Failed to extract text from PDF for {company_name}.")
             return False, "Failed to extract text from PDF."
         if len(report_text) < 100:
              logger.warning(f"Very little text extracted for {company_name}. Processing might yield poor results.")
 
-
-        # 2. Get LLM Extraction
-        logger.info(f"Sending extraction request to Gemini for {company_name}...")
-        llm_results = get_gemini_extraction(report_text, company_name, gemini_client, gemini_model) # Uses your service
-
+        # 3. Get LLM Extraction - Pass company data to extraction function
+        logger.info(f"Sending extraction request to Gemini for {company_name} with company context...")
+        llm_results = get_gemini_extraction(report_text, company_name, company_row, gemini_client, gemini_model)
         if not llm_results: # Check if extraction returned an empty dict or None
             logger.error(f"Gemini extraction failed or returned empty for {company_name}.")
             return False, "Data extraction via AI failed."
@@ -369,14 +381,25 @@ def get_dashboard_data():
         # Clean column names (replace spaces, %, etc.) if needed for easier JS access
         # df.columns = df.columns.str.replace(' ', '_', regex=False).str.replace('[^A-Za-z0-9_]+', '', regex=True)
 
-        relevant_cols = [ # Adjust based on actual columns in your CSV
+        relevant_cols = [
             'Name', 'Industry', 'Annual Revenue', 'Employee Size', 'Geographical Region',
-            'Target Status', 'Emission targets', 'Target Year', 'Scope coverage',
-            'Emissions Reduction (% achieved)', # Check exact name
+            'Target Status',
+            # --- Include NEW Target Columns ---
+            'Emission targets',
+            'Target Year',
+            'Scope coverage',
+            'Base Year',       # Add if you want to display it
+            'Interim Targets', # Add if you want to display it
+            # --- End New Target Columns ---
+            'Emissions Reduction (% achieved)', # Check exact name from your original Excel/integration
             'Renewables', 'Energy Efficiency', 'Electrification', 'Bioenergy',
             'CCUS', 'Hydrogen Fuel', 'Behavioral Changes'
         ]
         existing_cols = [col for col in relevant_cols if col in df.columns]
+        if not existing_cols:
+             logger.error("No relevant columns found in the enhanced dataset for the dashboard.")
+             return jsonify({"error": "Dashboard data format error: No relevant columns found."}), 500
+
         dashboard_df = df[existing_cols]
 
         # Convert NaN to null for JSON compatibility (or 'N/A' if preferred)
@@ -410,36 +433,130 @@ def get_dashboard_data():
         return jsonify({"error": f"Failed to prepare dashboard data: {str(e)}"}), 500
 
 
-@app.route('/api/companies/<path:company_name>/generate-pathway', methods=['POST'])
-def generate_pathway(company_name):
-    """Triggers pathway generation and returns the URL to the HTML file."""
-    logger.info(f"Pathway generation requested for: {company_name}")
-    if not gemini_client: # Check Gemini status again
-         return jsonify({"error": "Cannot generate pathway: Gemini client not available."}), 503 # Service unavailable
+# backend_api.py (Relevant parts modified)
+import os
+import sys
+import time
+import pandas as pd
+import logging
+from flask import Flask, request, jsonify, send_from_directory
+# ... other imports remain the same ...
+from werkzeug.utils import secure_filename
+# ... other imports ...
+from analysis.recommendations import get_recommendations # Import the core function
+
+# --- Constants and Setup remain the same ---
+# ... UPLOAD_FOLDER, ALLOWED_EXTENSIONS, OUTPUT_DIR, ENHANCED_CSV_PATH, VISUALIZATIONS_DIR, EXCEL_PATH, PDF_ORIGINAL_DIR ...
+# ... Directory creation ...
+# ... Logging setup ...
+# ... Gemini client init ...
+# ... Flask App setup (app = Flask(...), CORS(app)) ...
+# ... Helper functions (allowed_file, get_pdf_path, get_company_status_from_excel_and_fs, run_processing_for_company) remain the same ...
+
+
+# --- MODIFIED Recommendation Helper ---
+def generate_recommendations_and_get_path(company_name):
+    """
+    Checks if pathway HTML exists. If yes, returns its path.
+    If not, generates recommendations, saves HTML, and returns its path.
+    Raises errors if generation fails or required data is missing.
+    """
+    logger.info(f"Requesting pathway for: {company_name}")
+    if not gemini_client:
+        logger.error("Gemini client not initialized. Cannot generate recommendations.")
+        raise RuntimeError("Gemini client not available.")
+
+    # --- Check if HTML file already exists ---
+    # Construct the expected filename based on visualization.py logic
+    # Use secure_filename for basic safety, assuming get_recommendations uses a similar logic for saving
+    # safe_company_name_for_file = secure_filename(company_name) # Use secure name for file path check
+    html_filename = f"{company_name}_pathway.html"
+    expected_html_path = os.path.join(VISUALIZATIONS_DIR, html_filename)
+    relative_path = os.path.join('visualizations', html_filename).replace(os.sep, '/') # For API response
+
+    if os.path.exists(expected_html_path):
+        logger.info(f"Pathway HTML already exists for {company_name} at {expected_html_path}. Returning existing path.")
+        return relative_path # Return path to existing file
+
+    # --- File doesn't exist, proceed with generation ---
+    logger.info(f"Pathway HTML not found for {company_name}. Proceeding with generation.")
+
+    if not os.path.exists(ENHANCED_CSV_PATH):
+        logger.error(f"Enhanced dataset '{ENHANCED_CSV_PATH}' not found. Cannot generate recommendations for {company_name}.")
+        raise FileNotFoundError(f"Enhanced dataset not found. Process '{company_name}' first.")
 
     try:
-        # This function now returns the relative path (e.g., 'visualizations/...')
-        # or raises an exception if it fails.
-        relative_html_path = generate_recommendations_and_get_path(company_name)
+        enhanced_df = pd.read_csv(ENHANCED_CSV_PATH)
+        # Ensure consistent cleaning for matching
+        enhanced_df['Name'] = enhanced_df['Name'].astype(str).str.strip()
+        company_name_clean = str(company_name).strip()
 
-        # The URL path the frontend uses via the /static/ endpoint
-        api_path = f"/static/{relative_html_path}" # Already has forward slashes
+        if company_name_clean not in enhanced_df['Name'].values:
+             logger.error(f"Company '{company_name_clean}' not found in the processed dataset.")
+             raise ValueError(f"Company '{company_name_clean}' not found in processed data.")
 
-        logger.info(f"Pathway generated for {company_name}. URL path: {api_path}")
-        return jsonify({"pathway_url": api_path}), 200
-    except FileNotFoundError as e:
-         logger.warning(f"Pathway generation failed for {company_name}: {e}")
-         return jsonify({"error": str(e)}), 404 # Specific error for file not found
-    except ValueError as e: # Catch value errors (e.g., company not found)
-         logger.warning(f"Pathway generation failed for {company_name}: {e}")
-         return jsonify({"error": str(e)}), 400 # Bad request or not found
-    except RuntimeError as e: # Catch specific runtime errors like Gemini client issue
-         logger.error(f"Pathway generation runtime error for {company_name}: {e}")
-         return jsonify({"error": str(e)}), 503
+        # --- Call the original get_recommendations ---
+        # This function needs access to the Gemini client and model.
+        # It should internally handle risk assessment and call generate_pathway_visualization,
+        # saving the file to VISUALIZATIONS_DIR with the expected name format.
+        logger.info(f"Calling core recommendation generation logic for {company_name_clean}...")
+        get_recommendations(company_name_clean, enhanced_df, gemini_client, gemini_model)
+        logger.info(f"Core recommendation generation finished for {company_name_clean}.")
+
+        # --- Verify the file was created ---
+        if not os.path.exists(expected_html_path):
+            logger.error(f"Recommendation generated, but expected HTML file still not found at: {expected_html_path}")
+            # Possible causes: filename mismatch in generation step, saving error, incorrect VISUALIZATIONS_DIR used by get_recommendations
+            raise FileNotFoundError(f"Generated HTML visualization file was not found after processing. Expected at: {html_filename}")
+
+        logger.info(f"Recommendations generated successfully for {company_name}. HTML saved to: {expected_html_path}")
+        return relative_path # Return the relative path
+
+    except (FileNotFoundError, ValueError, RuntimeError) as specific_error:
+         # Re-raise errors we specifically check for
+         raise specific_error
     except Exception as e:
-        # Catch-all for unexpected errors during generation
+        logger.error(f"Unexpected error during recommendation generation for {company_name}: {e}", exc_info=True)
+        # Wrap unexpected errors
+        raise RuntimeError(f"An unexpected error occurred during pathway generation: {e}") from e
+
+
+# --- MODIFIED API Endpoint ---
+@app.route('/api/companies/<path:company_name>/generate-pathway', methods=['POST'])
+def generate_pathway(company_name):
+    """
+    Checks for existing pathway, generates if needed, returns URL path.
+    Handles potential errors during the process.
+    """
+    logger.info(f"'/generate-pathway' endpoint called for: {company_name}")
+    if not gemini_client:
+         return jsonify({"error": "Cannot generate pathway: Gemini client not available."}), 503
+
+    try:
+        # This function now handles the check and generation internally
+        relative_html_path = generate_recommendations_and_get_path(company_name)
+        api_path = f"/static/{relative_html_path}" # Construct URL path
+
+        logger.info(f"Pathway URL path for {company_name}: {api_path}")
+        return jsonify({"pathway_url": api_path}), 200
+
+    except FileNotFoundError as e:
+         logger.warning(f"Pathway generation prerequisite failed for {company_name}: {e}")
+         # If enhanced dataset is missing, it's more of a client error (needs processing first)
+         if "Enhanced dataset not found" in str(e):
+             return jsonify({"error": str(e)}), 400 # Bad Request - needs processing
+         else:
+              return jsonify({"error": str(e)}), 404 # Not Found - HTML file missing after generation attempt?
+    except ValueError as e: # Catch value errors (e.g., company not found in data)
+         logger.warning(f"Pathway generation input error for {company_name}: {e}")
+         return jsonify({"error": str(e)}), 404 # Treat as Not Found or Bad Request
+    except RuntimeError as e: # Catch specific runtime errors (Gemini client, unexpected gen error)
+         logger.error(f"Pathway generation runtime error for {company_name}: {e}")
+         return jsonify({"error": str(e)}), 503 # Service Unavailable or Internal Error
+    except Exception as e:
+        # Catch-all for truly unexpected errors
         logger.error(f"Pathway generation endpoint failed unexpectedly for {company_name}: {e}", exc_info=True)
-        return jsonify({"error": f"Pathway generation failed: {str(e)}"}), 500
+        return jsonify({"error": f"Pathway generation failed unexpectedly: {str(e)}"}), 500
 
 
 # Serve the generated static HTML files from the 'outputs/visualizations' directory

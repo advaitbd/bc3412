@@ -18,18 +18,31 @@ ACTION_CATEGORIES = [
     "Behavioral Changes"
 ]
 
-# Updated Extraction prompt template (now requesting countries of operation and justifications for actions)
+# --- UPDATED Extraction Prompt ---
 ENHANCED_EXTRACTION_PROMPT = """
 Analyze the following annual report text for "{company_name}" and extract the explicitly stated information below.
+Use the existing company information provided to inform your analysis, but focus on extracting new information from the report text.
+
+EXISTING COMPANY DATA:
+{company_context}
+
 Structure the output EXACTLY as follows, using the headers provided, and ensure your entire response is valid JSON.
-If a specific piece of information is not explicitly mentioned in the text provided, state "Not Mentioned". For the TRUE / FALSE classifications, format it as "TRUE" or "FALSE" ONLY.
+If a specific piece of information is not explicitly mentioned in the text provided, state "Not Mentioned". For the TRUE/FALSE classifications, format it as "TRUE" or "FALSE" ONLY.
 
 {{
   "Executive Summary": "[Provide a concise summary of the company's business model and overall strategy as stated.]",
-  "Strategic Priorities (Energy Transition)": "[List ONLY explicitly mentioned priorities related to: Renewables, Energy Efficiency, Electrification, Bioenergy, CCUS, Hydrogen Fuel, Behavioral Changes. If none mentioned, state 'Not Mentioned'.]",
+  "Strategic Priorities (Energy Transition)": "[List ONLY explicitly mentioned priorities related to: {action_categories_list}. If none mentioned, state 'Not Mentioned'.]",
   "Financial Commitments (Energy Transition)": "[State SPECIFICALLY: a) % of CapEx dedicated to energy transition, b) Absolute CapEx amount in local currency, c) Any planned increase over time, d) Any specific project allocations. Provide exact figures and timeframes if mentioned. If none found, state 'Not Mentioned'.]",
   "Identified Risks (Physical and Transition)": "[List explicitly mentioned physical risks (e.g., climate impacts) and transition risks (e.g., policy changes, market shifts) related to energy/climate. If none mentioned, state 'Not Mentioned'.]",
-  "Sustainability Milestones": "[List explicitly stated quantitative milestones, targets, years, and scope coverage (Scope 1, 2, 3) related to emissions or other sustainability goals. If none mentioned, state 'Not Mentioned'.]",
+
+  // --- START: Modified Target Section ---
+  "Emission targets": "[List specific quantitative emission reduction targets mentioned, e.g., '50% reduction in Scope 1 & 2 by 2030', 'Net Zero Scope 1 & 2 by 2050'. If none explicitly stated, state 'Not Mentioned'.]",
+  "Target Year": "[State the primary target year mentioned for the main emission goals (e.g., 2030, 2040, 2050). If multiple distinct years or none explicitly stated, state 'Not Mentioned' or list key years.]",
+  "Scope coverage": "[List the scopes (Scope 1, 2, 3) explicitly covered by the main emission targets mentioned. Format as 'Scope 1, 2' or 'Scope 1, 2, 3'. If not explicitly mentioned, state 'Not Mentioned'.]",
+  "Base Year": "[State the base year used for emission reduction targets, if mentioned (e.g., 2019). If not mentioned, state 'Not Mentioned'.]",
+  "Interim Targets": "[List any specific interim targets mentioned (e.g., '25% reduction by 2025'). If none mentioned, state 'Not Mentioned'.]",
+  // --- END: Modified Target Section ---
+
   "Countries of Operation": "[List all countries where the company explicitly states it has operations, assets, production facilities, or significant business activities. Provide as a comma-separated list. If none mentioned, state 'Not Mentioned'.]",
   "Action Classifications": {{
       "Renewables": "TRUE/FALSE",

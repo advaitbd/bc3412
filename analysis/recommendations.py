@@ -222,28 +222,34 @@ Country-Specific Climate Risks:
 
 
         # --- Create Prompt for Recommendations ---
-        prompt_text = DETAILED_RECOMMENDATION_PROMPT.format(
-            company_name=company_name_clean,
-            # Use the cleaned fields derived above
-            executive_summary=fields['executive_summary'],
-            strategic_priorities=fields['strategic_priorities'],
-            financial_commitments=fields['financial_commitments'],
-            sustainability_info=fields['sustainability_info'],
-            risks_info=fields['risks_info'],
-            # Use financial data derived above
-            transition_capex=transition_capex,
-            project_allocations=project_allocations,
-            # Use actions summary derived above
-            actions_summary=actions_summary,
-            # Use risk assessment text derived above
-            risk_assessment=risk_assessment,
-            # Include LLM generated summaries if the prompt expects them
-            # peer_summary_llm=peer_summary, # Uncomment if prompt uses these keys
-            # executive_summary_llm=executive_summary_llm # Uncomment if prompt uses these keys
-        )
+        try:
+            prompt_text = DETAILED_RECOMMENDATION_PROMPT.format(
+                company_name=company_name_clean,
+                # Use the cleaned fields derived above
+                executive_summary=fields['executive_summary'],
+                strategic_priorities=fields['strategic_priorities'],
+                financial_commitments=fields['financial_commitments'],
+                sustainability_info=fields['sustainability_info'], # Check if this should be the specific target fields now?
+                risks_info=fields['risks_info'],
+                # Use financial data derived above
+                transition_capex=transition_capex,
+                project_allocations=project_allocations,
+                # Use actions summary derived above
+                actions_summary=actions_summary,
+                # Use risk assessment text derived above
+                risk_assessment=risk_assessment
+                # Add any other placeholders defined in the recommendation prompt
+            )
+        except KeyError as e:
+            logger.error(f"KeyError formatting recommendation prompt for {company_name_clean}: {e}")
+            # Handle error gracefully, maybe return an error message
+            print(f"Error: Could not format recommendation request for {company_name_clean}. Check data availability and prompt.")
+            # Optionally save data gathered so far
+            save_enhanced_data(enhanced_df, DEFAULT_OUTPUT_CSV)
+            return # Exit the function
 
         logging.info(f"Sending recommendation request to Gemini for {company_name_clean}...")
-        logging.debug(f"Prompt sent to Gemini:\n{prompt_text[:500]}...") # Log start of prompt
+        logging.debug(f"Recommendation Prompt Snippet:\n{prompt_text[:500]}...") # Log start of prompt
         response_text = get_gemini_response(prompt_text, client, model)
 
         if not response_text:

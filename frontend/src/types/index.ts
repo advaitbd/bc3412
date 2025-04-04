@@ -5,26 +5,29 @@ export interface CompanyStatus {
   error?: string; // Optional error message per company
 }
 
-// Define based on your actual enhanced_dataset.csv columns and dashboard needs
 export interface DashboardData {
   Name: string;
-  Industry: string;
-  "Annual Revenue"?: string | number | "N/A"; // Optional and allow N/A
-  "Employee Size"?: string | number | "N/A";
-  "Geographical Region"?: string | "N/A";
-  "Target Status"?: string | "N/A";
-  "Emission targets"?: string | "N/A";
-  "Target Year"?: number | string | "N/A";
-  "Scope coverage"?: string | "N/A";
-  "Emissions Reduction (% achieved)"?: number | string | "N/A";
-  Renewables?: boolean | string; // Allow boolean or string like 'Yes'/'No'/'N/A'
-  "Energy Efficiency"?: boolean | string;
-  Electrification?: boolean | string;
-  Bioenergy?: boolean | string;
-  CCUS?: boolean | string;
-  "Hydrogen Fuel"?: boolean | string;
-  "Behavioral Changes"?: boolean | string;
-  [key: string]: any; // Allow other potential columns
+  Industry: string | null; // Allow null from backend
+  "Annual Revenue"?: string | number | null;
+  "Employee Size"?: string | number | null;
+  "Geographical Region"?: string | null;
+  "Target Status"?: string | null;
+  // --- Add New Target Fields ---
+  "Emission targets"?: string | null;
+  "Target Year"?: number | string | null;
+  "Scope coverage"?: string | null;
+  "Base Year"?: number | string | null;
+  "Interim Targets"?: string | null;
+  // --- End New Target Fields ---
+  "Emissions Reduction (% achieved)"?: number | string | null;
+  Renewables?: boolean | null; // Allow boolean or null
+  "Energy Efficiency"?: boolean | null;
+  Electrification?: boolean | null;
+  Bioenergy?: boolean | null;
+  CCUS?: boolean | null;
+  "Hydrogen Fuel"?: boolean | null;
+  "Behavioral Changes"?: boolean | null;
+  [key: string]: any; // Keep for flexibility
 }
 
 export interface PathwayResponse {

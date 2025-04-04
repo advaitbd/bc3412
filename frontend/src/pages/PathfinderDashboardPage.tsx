@@ -5,6 +5,7 @@ import TargetStatusChart from "../components/Dashboard/TargetStatusChart";
 import ActionAdoptionTable from "../components/Dashboard/ActionAdoptionTable";
 import { getDashboardData } from "../services/api";
 import type { DashboardData, ApiError } from "../types";
+import TargetOverviewTable from "../components/Dashboard/TargetOverviewTable";
 import { Link } from "react-router-dom";
 // Example Icons (install @heroicons/react)
 import {
@@ -174,7 +175,10 @@ const PathfinderDashboardPage: React.FC = () => {
               Placeholder for another chart (e.g., Industry Breakdown)
             </div>
           </div>
-
+          {/* Targets Table */}
+          <div>
+            <TargetOverviewTable data={dashboardData} />
+          </div>
           {/* Full Width Table */}
           <div>
             <ActionAdoptionTable data={dashboardData} />
