@@ -29,8 +29,7 @@ This project implements a data pipeline MVP (Minimum Viable Product) designed to
     ├── Data            # contain the datasets used for risk evaluations
         ├── carbon_pricing_filtered.csv
         ├── temprisedata2.csv
-        ├── trade_tech_filtered.csv
-
+        └── trade_tech_filtered.csv
     ├── pages           # tabs for UI
         ├── Carbon_Visualisation
         ├── Climate_Forecast
