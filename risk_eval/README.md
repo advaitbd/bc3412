@@ -21,7 +21,7 @@ The risk evaluation tool analyses 3 aspects:
     ├── climate.json
     ├── policy.json
     └── technology.json
-├── Carbon Forecast.py   # main file to run the streamlit ui
+├── Carbon_Forecast.py   # main file to run the streamlit ui
 ├── README.md
 └── risk_evaluator.py    # risk evaluation directly integrated into recommendation pipeline
 ```
