@@ -7,6 +7,8 @@ The risk evaluation tool analyses 3 aspects:
 3. Policy Risk
 
 ## Directory Structure 
+```
+.
 ├── Data           
     ├── carbon_pricing_filtered.csv
     ├── temprisedata2.csv
@@ -19,9 +21,10 @@ The risk evaluation tool analyses 3 aspects:
     ├── climate.json
     ├── policy.json
     └── technology.json
-├── risk_evaluator.py    # risk evaluation directly integrated into recommendation pipeline
-└── Carbon Forecast.py   # main file to run the streamlit ui
-
+├── Carbon Forecast.py   # main file to run the streamlit ui
+├── README.md
+└── risk_evaluator.py    # risk evaluation directly integrated into recommendation pipeline
+```
 
 ## Usage
 The tool is developed as a Streamlit App. Install `Dependencies Required` and run `Commands` to use the tool. 
