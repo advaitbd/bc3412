@@ -44,10 +44,7 @@ if selected_countries:
             st.warning(f"No valid temperature change data available for {country}.")
         else:
             st.subheader(f"Temperature Rise Analysis in {country}")
-            # st.line_chart(temprise_country_value)
 
-            # Slider for number of years to forecast
-            # years_to_forecast = st.slider(f"Select number of years to forecast for {country}:", min_value=1, max_value=20, value=10)
             years_to_forecast = 3 # constant to reach 2027
 
             try:

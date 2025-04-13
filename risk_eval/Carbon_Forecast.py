@@ -28,6 +28,7 @@ if countries:
             
             st.header("Analysis")
             
+            # analysis of what policies are used 
             if (fil_df.loc[(fil_df.TOTTAX > 0) | (fil_df.MPERPRI >0)].empty):
                 st.warning("NO tax or credit used")
                 
@@ -62,6 +63,8 @@ if countries:
                         spec_df.set_index("TIME", inplace=True)
                     
                         new_df = pd.DataFrame()
+                        
+                        # forecast 
                         for measure in ["FUETAX", "CARBTAX", "MPERPRI", "SUBSID"]:
                             model = Holt(spec_df[measure])
                             model_double_fit = model.fit()
@@ -87,10 +90,10 @@ if countries:
                         st.session_state.forecast_carbon_df = pd.concat([st.session_state.forecast_carbon_df, new_df])
 
                         # show individual changes
-                        
                         ecr_change_df[country][source] = (new_df["ECRATE"].iloc[-1] - new_df["ECRATE"].iloc[4])
                         necr_change_df[country][source] = (new_df["NETECR"].iloc[-1] - new_df["NETECR"].iloc[4])
 
+                # Overall Analysis
                 st.subheader("Effective Carbon Rate")
                 change = pd.DataFrame(ecr_change_df).values.sum()
                 st.session_state.policy_results["ECRATE"] = {}
