@@ -1,5 +1,4 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import pandas as pd
 from statsmodels.tsa.api import Holt
 import json
