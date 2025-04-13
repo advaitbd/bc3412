@@ -1,16 +1,15 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import pandas as pd
 from statsmodels.tsa.api import Holt
 import json
 
-st.title("Technology Risk Analysis")
+st.title("Risk Evaluation for Technology Products")
 
 if "tech_df" not in st.session_state:
     st.session_state.tech_df = pd.read_csv("Data/trade_tech_filtered.csv")
 
-if "results" not in st.session_state:
-        st.session_state.results = {}
+if "tech_results" not in st.session_state:
+        st.session_state.tech_results = {}
 
 count_risk = {"High": 0, "Low":0}
 
@@ -28,65 +27,60 @@ else:
 available_countries = list(tech.columns)
 
 # Multi-select for country selection
-selected_countries = st.multiselect("Select countries for analysis:", available_countries)
+selected_countries = st.multiselect("Select countries for analysis:", available_countries, placeholder="You may select more than 1 country.")
 
 # Select number of years for forecasting
-# forecast_years = st.slider(f"Select number of years to forecast for {country}:", min_value=1, max_value=20, value=10, key=f"slider_{country}")
 forecast_years = 4 # until 2027
 
-# Show data and forecast for each selected country
-for country in selected_countries:
-    st.subheader(f"Trade in Low Carbon Products Analysis for {country}")
+# initialise results
+st.session_state.tech_results["Countries"] = {}
 
-    # Extract country-specific data
-    country_data = tech[country].dropna()
+if selected_countries:
+    # Show data and forecast for each selected country
+    for country in selected_countries:
+        st.subheader(f"Trade in Low Carbon Products Analysis for {country}")
 
-    if country_data.empty:
-        st.warning(f"No data available for {country}. Skipping forecast.")
-        continue
+        # Extract country-specific data
+        country_data = tech[country].dropna()
 
-    # Get last 5 years of actual data
-    last_5_years = country_data.tail(5)
+        if country_data.empty:
+            st.warning(f"No data available for {country}. Skipping forecast.")
+            continue
 
-    # Apply Holt’s model
-    holt_model = Holt(country_data, initialization_method="estimated").fit()
-    forecast = holt_model.forecast(steps=forecast_years)
+        # Get last 5 years of actual data
+        last_5_years = country_data.tail(5)
 
-    # Create forecast index
-    forecast_index = range(country_data.index[-1] + 1, country_data.index[-1] + 1 + forecast_years)
-    
-    # Combine actual last 5 years and forecasted data into one DataFrame
-    forecast_df = pd.DataFrame({"Year": list(last_5_years.index) + list(forecast_index),
-                                 "Trade Value": list(last_5_years.values) + list(forecast.values)})
+        # Apply Holt’s model
+        holt_model = Holt(country_data, initialization_method="estimated").fit()
+        forecast = holt_model.forecast(steps=forecast_years)
 
-    # Display combined actual + forecasted values
-    st.write(f"Trade in Low Carbon Products Data & Forecast for {country} (Last 5 Years + Next {forecast_years} Years)")
-    # st.dataframe(forecast_df.set_index("Year"))
+        # Create forecast index
+        forecast_index = range(country_data.index[-1] + 1, country_data.index[-1] + 1 + forecast_years)
+        
+        # Combine actual last 5 years and forecasted data into one DataFrame
+        forecast_df = pd.DataFrame({"Year": list(last_5_years.index) + list(forecast_index),
+                                    "Trade Value": list(last_5_years.values) + list(forecast.values)})
 
-    # Plot Actual vs Forecast
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(country_data, label="Actual", color="blue")
-    ax.plot(forecast_index, forecast, label="Forecasted Trade in Low Carbon Products", linestyle="dashed", color="red")
-    ax.set_title(f"Forecasted Trade in Low Carbon Products for {country}")
-    ax.set_xlabel("Year")
-    ax.set_ylabel("Total Trade of Low Carbon Technology Products as a % of GDP")
-    ax.legend()
-    st.pyplot(fig)
+        forecast_df.Year = pd.to_datetime(forecast_df.Year, format= "%Y")
+        
+        st.line_chart(forecast_df.set_index("Year"), x_label = "Year", y_label = "Trade in Low Carbon Technology Products (% of GDP)",)
 
-    if forecast.values[-1] > forecast.values[-3]:
-        st.markdown("**Overall: <span style='color:green;'>Low Risk</span>**", unsafe_allow_html=True)
-        count_risk["Low"] += 1
-    else:
-        st.markdown("**Overall: <span style='color:red;'>High Risk</span>**", unsafe_allow_html=True)
-        count_risk["High"] += 1
-    
+        if forecast.values[-1] > forecast.values[-3]:
+            st.markdown("**Overall: <span style='color:green;'>Low Risk</span>**", unsafe_allow_html=True)
+            count_risk["Low"] += 1
+            st.session_state.tech_results["Countries"][country] = "Low"
+        else:
+            st.markdown("**Overall: <span style='color:red;'>High Risk</span>**", unsafe_allow_html=True)
+            count_risk["High"] += 1
+            st.session_state.tech_results["Countries"][country] = "High"
+        
 
-st.session_state.results["Technology"] = max(count_risk.items(), key = lambda x: x[1])[0]
+        st.session_state.tech_results["Countries"]["Overall"] = max(count_risk.items(), key = lambda x: x[1])[0]
 
-if st.button("Export"):
-    st.session_state.results["Year"] = "2027"
-    with open('result/result.json', 'w') as f:
-        json.dump(st.session_state.results, f)
+    if st.button("Export"):
+        st.session_state.tech_results["Year"] = "2027"
+        with open('result/technology.json', 'w') as f:
+            json.dump(st.session_state.tech_results, f)
     
 
 
