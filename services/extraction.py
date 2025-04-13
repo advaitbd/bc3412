@@ -1,48 +1,72 @@
 import logging
 import pandas as pd
 import numpy as np
-from config.settings import ENHANCED_EXTRACTION_PROMPT
+from config.settings import ENHANCED_EXTRACTION_PROMPT, ACTION_CATEGORIES
 from services.gemini_service import get_gemini_response
 from analysis.parser import parse_gemini_output
 import os
 
-def get_gemini_extraction(text, company_name, client, model):
-    """Extract structured information from report text using Gemini."""
+def get_gemini_extraction(text, company_name, company_data, client, model):
+    """Extract structured information from report text using Gemini with existing company context."""
     if not text:
         logging.warning(f"No text provided for Gemini extraction for {company_name}.")
-        # Return dictionary with NaNs and False for actions
-        parsed_data = parse_gemini_output("")
-        return parsed_data
+        return parse_gemini_output("") # Return default structure
 
-    # Fill the prompt template with company name and text
-    prompt = ENHANCED_EXTRACTION_PROMPT.format(company_name=company_name, text=text[:800000])
+    if not client or not model:
+         logging.error(f"Gemini client/model not available for extraction for {company_name}.")
+         return parse_gemini_output("")
+
+    # Convert company data to a formatted string to include in prompt
+    company_context = ""
+    if isinstance(company_data, pd.Series):
+        # Format existing company data for the prompt
+        for key, value in company_data.items():
+            if pd.notna(value) and key != 'Name':  # Skip NaN values and Name (already included)
+                company_context += f"{key}: {value}\n"
+
+    # Prepare arguments for formatting
+    format_args = {
+        'company_name': company_name,
+        'company_context': company_context,  # Add existing company data
+        'text': text[:800000],  # Apply slicing here
+        'action_categories_list': ', '.join(ACTION_CATEGORIES)  # Generate list string
+    }
 
     try:
+        # Update prompt template in config/settings.py to include company_context
+        prompt = ENHANCED_EXTRACTION_PROMPT.format(**format_args)
+
         logging.info(f"Sending request to Gemini for {company_name}...")
+        # Log only a snippet of the potentially huge prompt
+        logging.debug(f"Gemini Prompt Snippet for {company_name}:\n{prompt[:500]}...")
+
         extracted_text = get_gemini_response(prompt, client, model)
         logging.info(f"Received response from Gemini for {company_name}.")
 
         if not extracted_text:
             logging.warning(f"Gemini returned no content for {company_name}.")
-            parsed_data = parse_gemini_output("")  # Return empty structure
-            return parsed_data
+            return parse_gemini_output("")
 
-        logging.debug(f"Raw Gemini Response for {company_name}:\n{extracted_text}")
+        # Log snippet of raw response for debugging parsing issues
+        logging.debug(f"Raw Gemini Response Snippet for {company_name}:\n{extracted_text[:500]}...")
 
-        # Basic check of response format
-        expected_sections = ["Executive Summary:", "Strategic Priorities", "Financial Commitments",
-                             "Identified Risks", "Sustainability Milestones", "Action Classifications"]
-
-        if not all(s in extracted_text for s in expected_sections):
-            logging.warning(f"Gemini response for {company_name} might be incomplete or wrongly formatted:\n{extracted_text[:500]}...")
+        # Basic check can be removed if parser handles non-JSON well
+        # expected_sections = ["Executive Summary", ...] # Maybe remove this check
 
         parsed_data = parse_gemini_output(extracted_text)
+        # Add company name if parser doesn't
+        if 'Name' not in parsed_data:
+            parsed_data['Name'] = company_name
         return parsed_data
 
+    except KeyError as e:
+         # Catch formatting errors specifically
+         logging.error(f"KeyError during prompt formatting for {company_name}: {e}. Check prompt string and arguments.")
+         logging.error(f"Available format args: {list(format_args.keys())}")
+         return parse_gemini_output("")
     except Exception as e:
-        logging.error(f"Error calling Gemini API for {company_name}: {e}")
-        parsed_data = parse_gemini_output("")
-        return parsed_data
+        logging.error(f"Error during Gemini extraction or parsing for {company_name}: {e}", exc_info=True)
+        return parse_gemini_output("") # Return default structure
 
 def process_companies(df, pdf_dir, client, model):
     """Process each company's PDF report and extract structured data."""
@@ -53,6 +77,9 @@ def process_companies(df, pdf_dir, client, model):
     for index, row in df.iterrows():
         company_name = row['Name']
         logging.info(f"Processing {company_name} ({processed_count + 1}/{total_companies})...")
+
+        # Pass the entire row data to the extraction function
+        company_data = row  # This contains all existing Excel data for this company
 
         # Construct PDF path based on exact company name
         pdf_filename = f"{company_name}.pdf"
@@ -67,8 +94,8 @@ def process_companies(df, pdf_dir, client, model):
             # Create a record with NaNs/False but keep company name for merging
             llm_results = parse_gemini_output("")
         else:
-            # Get structured data from Gemini
-            llm_results = get_gemini_extraction(report_text, company_name, client, model)
+            # Get structured data from Gemini, passing the company data
+            llm_results = get_gemini_extraction(report_text, company_name, company_data, client, model)
 
         # Add company name to the results for merging
         llm_results['Name'] = company_name
