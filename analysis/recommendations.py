@@ -226,7 +226,8 @@ Country-Specific Climate Risks:
             prompt_text = DETAILED_RECOMMENDATION_PROMPT.format(
                 company_name=company_name_clean,
                 # Use the cleaned fields derived above
-                executive_summary=fields['executive_summary'],
+                executive_summary=executive_summary_llm,
+                peer_summary=peer_summary,
                 strategic_priorities=fields['strategic_priorities'],
                 financial_commitments=fields['financial_commitments'],
                 sustainability_info=fields['sustainability_info'], # Check if this should be the specific target fields now?

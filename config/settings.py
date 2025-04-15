@@ -6,6 +6,7 @@ DEFAULT_PDF_DIR = "annual_reports"
 DEFAULT_OUTPUT_DIR = "outputs"
 DEFAULT_OUTPUT_CSV = os.path.join(DEFAULT_OUTPUT_DIR, "enhanced_dataset.csv")
 GEMINI_MODEL_NAME = "gemini-2.0-flash"
+# GEMINI_MODEL_NAME = "gemini-2.5-pro-preview-03-25"
 
 # Define the action categories for classification
 ACTION_CATEGORIES = [
@@ -74,6 +75,7 @@ You are an expert energy transition consultant creating a detailed, time-based r
 
 COMPANY PROFILE FROM ANNUAL REPORT:
 - Executive Summary: {executive_summary}
+- Peer Summary: {peer_summary}
 - Strategic Priorities: {strategic_priorities}
 - Financial Commitments: {financial_commitments}
 - Sustainability Targets: {sustainability_info}

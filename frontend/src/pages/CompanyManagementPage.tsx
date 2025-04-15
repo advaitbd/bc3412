@@ -125,7 +125,7 @@ const CompanyManagementPage: React.FC = () => {
             onError={handleItemError}
             // Pass the function to open the modal for a specific company
             // NOTE: Requires modifying CompanyListItem to accept and use this prop
-            // onOpenUploadModal={handleOpenUploadModal}
+            onOpenUploadModal={handleOpenUploadModal}
           />
           {/* Render Upload Modal */}
           {modalOpenFor && (

@@ -10,3 +10,18 @@
     @apply font-sans; // Apply a default font using Tailwind
   }
 */
+
+/* Ensure tooltips appear above sticky elements (like table headers/columns) */
+.high-z-tooltip {
+    z-index: 50 !important; /* Higher than sticky column (z-10) */
+}
+
+/* Optional: Custom styling for react-tooltip */
+/* .custom-tooltip-style {
+  background-color: #333 !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 6px 10px !important;
+  font-size: 0.8rem !important;
+  max-width: 300px !important; /* Adjust max width as needed */
+/* } */

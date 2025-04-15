@@ -14,6 +14,7 @@ export interface DashboardData {
   "Target Status"?: string | null;
   // --- Add New Target Fields ---
   "Emission targets"?: string | null;
+  "Strategic Priorities (Energy Transition)"?: string | null; // Added field
   "Target Year"?: number | string | null;
   "Scope coverage"?: string | null;
   "Base Year"?: number | string | null;
@@ -21,11 +22,17 @@ export interface DashboardData {
   // --- End New Target Fields ---
   "Emissions Reduction (% achieved)"?: number | string | null;
   Renewables?: boolean | null; // Allow boolean or null
+  Renewables_Justification?: string | null; // Added justification
   "Energy Efficiency"?: boolean | null;
+  "Energy Efficiency_Justification"?: string | null; // Added justification
   Electrification?: boolean | null;
+  Electrification_Justification?: string | null; // Added justification
   Bioenergy?: boolean | null;
+  Bioenergy_Justification?: string | null; // Added justification
   CCUS?: boolean | null;
+  CCUS_Justification?: string | null; // Added justification
   "Hydrogen Fuel"?: boolean | null;
+  "Hydrogen Fuel_Justification"?: string | null; // Added justification
   "Behavioral Changes"?: boolean | null;
   [key: string]: any; // Keep for flexibility
 }

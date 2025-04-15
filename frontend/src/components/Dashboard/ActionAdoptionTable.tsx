@@ -1,11 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Tooltip } from "react-tooltip"; // Import Tooltip
+import "react-tooltip/dist/react-tooltip.css"; // Import default styles
 import type { DashboardData } from "../../types";
 import {
   CheckCircleIcon,
   XCircleIcon,
   QuestionMarkCircleIcon,
-} from "@heroicons/react/24/solid"; // Solid icons for clarity
+} from "@heroicons/react/24/solid";
 
 interface ActionAdoptionTableProps {
   data: DashboardData[];
@@ -22,27 +24,45 @@ const actionColumns: (keyof DashboardData)[] = [
   // 'Behavioral Changes' // Add if needed
 ];
 
-// Helper to display boolean values nicely
-const renderBooleanCell = (value: boolean | string | null | undefined) => {
+// Helper to display boolean values nicely with Tooltip attributes
+const renderBooleanCell = (
+  companyName: string, // Add companyName for unique ID
+  actionKey: string, // Add actionKey for unique ID
+  value: boolean | string | null | undefined,
+  justification: string | null | undefined,
+) => {
+  const tooltipId = `tooltip-${companyName}-${actionKey}`; // Create unique ID
+  const tooltipContent = justification || "N/A"; // Content for the tooltip
+
   if (value === true || value === "Yes" || value === "TRUE") {
     return (
-      <CheckCircleIcon className="h-5 w-5 text-green-500 mx-auto" title="Yes" />
+      <CheckCircleIcon
+        className="h-5 w-5 text-green-500 mx-auto cursor-pointer" // Add cursor pointer
+        data-tooltip-id={tooltipId}
+        data-tooltip-content={tooltipContent}
+      />
     );
   } else if (value === false || value === "No" || value === "FALSE") {
-    return <XCircleIcon className="h-5 w-5 text-red-500 mx-auto" title="No" />;
+    return (
+      <XCircleIcon
+        className="h-5 w-5 text-red-500 mx-auto cursor-pointer" // Add cursor pointer
+        data-tooltip-id={tooltipId}
+        data-tooltip-content={tooltipContent}
+      />
+    );
   } else {
     return (
       <QuestionMarkCircleIcon
-        className="h-5 w-5 text-gray-400 mx-auto"
-        title="N/A"
+        className="h-5 w-5 text-gray-400 mx-auto cursor-pointer" // Add cursor pointer
+        data-tooltip-id={tooltipId}
+        data-tooltip-content={tooltipContent}
       />
-    ); // Handle null, undefined, 'N/A'
+    );
   }
 };
 
 // Helper to format column headers
 const formatHeader = (key: string): string => {
-  // Simple formatter, can be expanded
   return key.replace(/([A-Z])/g, " $1").trim();
 };
 
@@ -53,7 +73,6 @@ const ActionAdoptionTable: React.FC<ActionAdoptionTableProps> = ({ data }) => {
     );
   }
 
-  // Filter action columns that actually exist in the first data row (as a sample)
   const availableActionColumns = actionColumns.filter((col) => col in data[0]);
 
   return (
@@ -90,7 +109,12 @@ const ActionAdoptionTable: React.FC<ActionAdoptionTableProps> = ({ data }) => {
                     key={col as string}
                     className="px-4 py-3 whitespace-nowrap text-center text-sm"
                   >
-                    {renderBooleanCell(company[col])}
+                    {renderBooleanCell(
+                      company.Name, // Pass company name
+                      col as string, // Pass action key
+                      company[col],
+                      company[`${col}_Justification`],
+                    )}
                   </td>
                 ))}
                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
@@ -107,6 +131,21 @@ const ActionAdoptionTable: React.FC<ActionAdoptionTableProps> = ({ data }) => {
           </tbody>
         </table>
       </div>
+      {/* Render the Tooltip components for each unique ID prefix */}
+      {/* We can use a single Tooltip component and let it handle multiple targets */}
+      {data.map((company) =>
+        availableActionColumns.map((col) => (
+          <Tooltip
+            key={`tooltip-${company.Name}-${col}`}
+            id={`tooltip-${company.Name}-${col}`}
+            place="top"
+            effect="solid"
+            className="high-z-tooltip" // Apply the high z-index class
+            // You can add custom styling via className prop if needed
+            // className="custom-tooltip-style"
+          />
+        )),
+      )}
     </div>
   );
 };

@@ -386,14 +386,27 @@ def get_dashboard_data():
             'Target Status',
             # --- Include NEW Target Columns ---
             'Emission targets',
+            'Strategic Priorities (Energy Transition)',
             'Target Year',
             'Scope coverage',
             'Base Year',       # Add if you want to display it
             'Interim Targets', # Add if you want to display it
             # --- End New Target Columns ---
             'Emissions Reduction (% achieved)', # Check exact name from your original Excel/integration
-            'Renewables', 'Energy Efficiency', 'Electrification', 'Bioenergy',
-            'CCUS', 'Hydrogen Fuel', 'Behavioral Changes'
+            'Renewables',
+            'Renewables_Justification',
+            'Energy Efficiency',
+            'Energy Efficiency_Justification',
+            'Electrification',
+            'Electrification_Justification',
+            'Bioenergy',
+            'Bioenergy_Justification',
+            'CCUS',
+            'CCUS_Justification',
+            'Hydrogen Fuel',
+            'Hydrogen Fuel_Justification',
+            'Behavioral Changes',
+            # 'Behavioral Changes_Justification'
         ]
         existing_cols = [col for col in relevant_cols if col in df.columns]
         if not existing_cols:
@@ -427,6 +440,7 @@ def get_dashboard_data():
 
         dashboard_json = dashboard_df.to_dict('records')
         logger.info(f"Returning {len(dashboard_json)} records for dashboard.")
+        print(dashboard_json)
         return jsonify(dashboard_json)
     except Exception as e:
         logger.error(f"Failed to load or process dashboard data: {e}", exc_info=True)
